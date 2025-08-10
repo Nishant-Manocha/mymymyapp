@@ -59,8 +59,7 @@ export const SecureTextInput = forwardRef<TextInput, SecureTextInputProps>(
             {...props}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            onLongPress={handleLongPress}
-            onSelectionChange={handleSelectionChange}
+
             placeholderTextColor="#999"
             autoCorrect={false}
             autoCapitalize="none"

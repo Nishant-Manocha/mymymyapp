@@ -32,6 +32,12 @@ export function Input({
         numberOfLines={numberOfLines}
         style={[styles.input, multiline && styles.multiline, style]}
         textAlignVertical={multiline ? "top" : "center"}
+        // Security hardening
+        contextMenuHidden={true}
+        autoCorrect={false}
+        autoCapitalize="none"
+        spellCheck={false}
+        selectTextOnFocus={false}
       />
     </View>
   );

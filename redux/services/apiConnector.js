@@ -1,6 +1,7 @@
 import axios from "axios";
+import { secureApiService } from "../../utils/apiSecurity";
 
-export const axiosInstance = axios.create({});
+export const axiosInstance = secureApiService.getApiClient();
 
 export const apiConnector = (method, url, bodyData, headers, params) => {
   return axiosInstance({

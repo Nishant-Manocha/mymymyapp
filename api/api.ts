@@ -1,26 +1,25 @@
 import axios from "axios";
 import store from "../redux/store"; // Adjust the import path as necessary
 import { getToken, saveToken } from "../utils/SecureStore";
+import { secureApiService } from "../utils/apiSecurity";
+import { SECURITY_CONFIG } from "../utils/securityConfig";
 
-const API = axios.create({
-  baseURL: process.env.SERVER_URL,
-});
+// Honor SERVER_URL if provided at runtime
+const resolvedBaseURL = process.env.SERVER_URL || SECURITY_CONFIG.API.BASE_URL;
+secureApiService.updateBaseURL(resolvedBaseURL);
+
+// Use secureApiService axios client
+const API = secureApiService.getApiClient();
 
 // Intercept all requests to attach the token
 API.interceptors.request.use(
   async (config) => {
-    // const state = store.getState();
-
-    // Debug logs
-    // console.log("Redux state in API:", state);
-    const token = await getToken(); // Adjust if your slice key is different
-    console.log("Access token from Redux:", token);
-
+    const token = await getToken();
     if (token) {
-      config.headers.authorization = `Bearer ${token}`;
-      console.log("Authorization header set:", config.headers.authorization);
-    } else {
-      console.log("No token found, request sent without Authorization header.");
+      // Keep using Authorization header, but also keep secure service in sync
+      (config.headers = (config.headers || {} as any)) as any;
+      (config.headers as any).authorization = `Bearer ${token}`;
+      secureApiService.setAuthToken(token);
     }
 
     return config;

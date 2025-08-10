@@ -1,7 +1,18 @@
 // API Utility for PSB Fraud Shield
 // Handles all server communication with proper error handling
 
+import { secureApiService } from './apiSecurity';
+import { SECURITY_CONFIG } from './securityConfig';
+
 export const API_BASE_URL = process.env.SERVER_URL || 'http://localhost:5000/api';
+
+// Ensure secure client uses the same base URL origin
+try {
+  const resolved = process.env.SERVER_URL || SECURITY_CONFIG.API.BASE_URL;
+  if (resolved) {
+    secureApiService.updateBaseURL(resolved);
+  }
+} catch {}
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -48,44 +59,40 @@ export interface FraudReport {
   createdAt: Date;
 }
 
-// Generic API call function
+// Generic API call function (now backed by secure client)
 export const apiCall = async <T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> => {
   try {
-    const url = `${API_BASE_URL}${endpoint}`;
-    
-    const defaultOptions: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    };
+    const method = (options.method || 'GET').toUpperCase();
+    const headers = options.headers as Record<string, string> | undefined;
+    const body = options.body as any;
 
-    const response = await fetch(url, {
-      ...defaultOptions,
-      ...options,
-    });
+    let responseData: any;
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || `HTTP ${response.status}`,
-      };
+    if (method === 'GET') {
+      responseData = await secureApiService.secureGet<T>(endpoint, { headers });
+    } else if (method === 'POST') {
+      responseData = await secureApiService.securePost<T>(endpoint, body, { headers });
+    } else if (method === 'PUT') {
+      responseData = await secureApiService.securePut<T>(endpoint, body, { headers });
+    } else if (method === 'DELETE') {
+      responseData = await secureApiService.secureDelete<T>(endpoint, { headers });
+    } else {
+      // Fallback: try as POST
+      responseData = await secureApiService.securePost<T>(endpoint, body, { headers });
     }
 
     return {
       success: true,
-      data,
+      data: responseData,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('API call failed:', error);
     return {
       success: false,
-      error: 'Network error. Please check your connection.',
+      error: error?.message || 'Network error. Please check your connection.',
     };
   }
 };

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { encryptionService } from './encryption';
 
 /**
  * AsyncStorage utility class for handling local storage operations
@@ -13,7 +14,10 @@ class AsyncStorageService {
   static async setItem(key, value) {
     try {
       const jsonValue = JSON.stringify(value);
-      await AsyncStorage.setItem(key, jsonValue);
+      // Ensure encryption service is available
+      try { await encryptionService.initialize(); } catch {}
+      const payload = await encryptionService.encrypt(jsonValue);
+      await AsyncStorage.setItem(key, payload);
       return true;
     } catch (error) {
       console.error('Error storing data:', error);
@@ -28,7 +32,11 @@ class AsyncStorageService {
    */
   static async getItem(key) {
     try {
-      const jsonValue = await AsyncStorage.getItem(key);
+      const payload = await AsyncStorage.getItem(key);
+      if (payload == null) return null;
+      // Ensure encryption service is available
+      try { await encryptionService.initialize(); } catch {}
+      const jsonValue = await encryptionService.decrypt(payload);
       return jsonValue != null ? JSON.parse(jsonValue) : null;
     } catch (error) {
       console.error('Error retrieving data:', error);
@@ -88,9 +96,19 @@ class AsyncStorageService {
     try {
       const values = await AsyncStorage.multiGet(keys);
       const result = {};
-      values.forEach(([key, value]) => {
-        result[key] = value ? JSON.parse(value) : null;
-      });
+      try { await encryptionService.initialize(); } catch {}
+      for (const [key, value] of values) {
+        if (value) {
+          try {
+            const jsonValue = await encryptionService.decrypt(value);
+            result[key] = jsonValue ? JSON.parse(jsonValue) : null;
+          } catch {
+            result[key] = null;
+          }
+        } else {
+          result[key] = null;
+        }
+      }
       return result;
     } catch (error) {
       console.error('Error getting multiple items:', error);
@@ -105,10 +123,12 @@ class AsyncStorageService {
    */
   static async setMultiple(keyValuePairs) {
     try {
-      const pairs = Object.entries(keyValuePairs).map(([key, value]) => [
-        key,
-        JSON.stringify(value)
-      ]);
+      try { await encryptionService.initialize(); } catch {}
+      const pairs = [];
+      for (const [key, value] of Object.entries(keyValuePairs)) {
+        const payload = await encryptionService.encrypt(JSON.stringify(value));
+        pairs.push([key, payload]);
+      }
       await AsyncStorage.multiSet(pairs);
       return true;
     } catch (error) {
@@ -141,7 +161,7 @@ class AsyncStorageService {
       const keys = await AsyncStorage.getAllKeys();
       const values = await AsyncStorage.multiGet(keys);
       let totalSize = 0;
-      
+
       values.forEach(([key, value]) => {
         totalSize += key.length + (value ? value.length : 0);
       });
