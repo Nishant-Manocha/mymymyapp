@@ -6,6 +6,7 @@ import { sendOtp } from "../redux/services/operations/authServices";
 import { setSignUpData } from "../redux/slices/authSlice";
 import OAuthButtons from "./OAuthButtons";
 import Toast from "react-native-toast-message";
+import SecureTextInput from "./SecureTextInput";
 
 const SignupForm = ({ onSignupSuccess }) => {
   const dispatch = useDispatch();
@@ -64,7 +65,7 @@ const SignupForm = ({ onSignupSuccess }) => {
         <Text style={styles.label}>First Name</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="person-outline" size={20} color="#777" />
-          <TextInput
+          <SecureTextInput
             style={styles.input}
             placeholder="Enter your first name"
             value={firstName}
@@ -75,7 +76,7 @@ const SignupForm = ({ onSignupSuccess }) => {
         <Text style={styles.label}>Last Name</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="person-outline" size={20} color="#777" />
-          <TextInput
+          <SecureTextInput
             style={styles.input}
             placeholder="Enter your last name"
             value={lastName}
@@ -86,7 +87,7 @@ const SignupForm = ({ onSignupSuccess }) => {
         <Text style={styles.label}>Email</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="mail-outline" size={20} color="#777" />
-          <TextInput
+          <SecureTextInput
             style={styles.input}
             placeholder="Enter your Email"
             value={email}
@@ -98,7 +99,7 @@ const SignupForm = ({ onSignupSuccess }) => {
         <Text style={styles.label}>Password</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="lock-closed-outline" size={20} color="#777" />
-          <TextInput
+          <SecureTextInput
             style={styles.input}
             placeholder="Enter your Password"
             secureTextEntry={!showPassword}
@@ -117,7 +118,7 @@ const SignupForm = ({ onSignupSuccess }) => {
         <Text style={styles.label}>Confirm Password</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="lock-closed-outline" size={20} color="#777" />
-          <TextInput
+          <SecureTextInput
             style={styles.input}
             placeholder="Confirm your Password"
             secureTextEntry={!showConfirmPassword}

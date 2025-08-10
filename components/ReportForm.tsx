@@ -11,12 +11,14 @@ import {
   Animated,
 } from "react-native";
 import API from "../api/api";
+import { apiCall } from "../utils/api";
 import { Picker } from "@react-native-picker/picker";
 import * as Location from "expo-location";
 import axios from "axios";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { useReports } from "../contexts/ReportContext";
 import { useNavigation } from "@react-navigation/native";
+import SecureTextInput from "./SecureTextInput";
 
 const SCAM_TYPES = [
   { label: "Phishing Attack", value: "phishing" },
@@ -160,11 +162,9 @@ const ReportForm: React.FC = () => {
 
     try {
       const SERVER_URL = process.env.SERVER_URL;
-      const response = await fetch(`${SERVER_URL}/reports`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const { success, data, error } = await apiCall('/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type,
           description,
@@ -176,11 +176,10 @@ const ReportForm: React.FC = () => {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to submit report");
+      if (!success) {
+        throw new Error(error || 'Failed to submit report');
       }
 
-      const data = await response.json();
       addReport(data);
 
       Alert.alert("Success", "Scam report submitted!");
@@ -223,7 +222,7 @@ const ReportForm: React.FC = () => {
       />
 
       <Text style={styles.label}>Your Contact Info</Text>
-      <TextInput
+      <SecureTextInput
         style={styles.input}
         placeholder="Phone or Email"
         value={contactInfo}
@@ -232,7 +231,7 @@ const ReportForm: React.FC = () => {
 
       <Text style={styles.label}>Address</Text>
       <View style={styles.addressContainer}>
-        <TextInput
+        <SecureTextInput
           style={styles.inputAddress}
           placeholder="Search or enter address..."
           value={address}

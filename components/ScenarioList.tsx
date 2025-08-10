@@ -21,6 +21,7 @@ import {
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 // import { scenarios, Scenario } from '../data/scenarios';
+import { apiCall } from "../utils/api";
 
 const { width } = Dimensions.get("window");
 
@@ -39,11 +40,12 @@ export const ScenarioList: React.FC<ScenarioListProps> = ({
   console.log("Scenario", completedScenarios);
   useEffect(() => {
     // Fetch scenarios data when component mounts
-    fetch(
-      `${process.env.SERVER_URL}/scenarios?category=${selectedCategory}&difficulty=${selectedDifficulty}`
-    ) // Replace with actual data fetching logic
-      .then((response) => response.json())
-      .then((data) => setScenarios(data.scenarios));
+    apiCall(`/scenarios?category=${selectedCategory}&difficulty=${selectedDifficulty}`)
+      .then(({ success, data, error }) => {
+        if (!success) throw new Error(error || 'Failed to fetch scenarios');
+        setScenarios(data.scenarios || data);
+      })
+      .catch((e) => console.error('Error fetching scenarios:', e));
   }, [selectedCategory, selectedDifficulty]);
 
   const categories = [

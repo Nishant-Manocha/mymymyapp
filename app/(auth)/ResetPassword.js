@@ -5,6 +5,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-nativ
 import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
 import { useLocalSearchParams } from "expo-router";
+import SecureTextInput from "../../components/SecureTextInput";
 
 const ResetPassword = () => {
   // const [otp, setOtp] = useState("");
@@ -73,7 +74,7 @@ const { email, otp } = useLocalSearchParams();
         <Text style={styles.label}>New Password</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="lock-closed-outline" size={20} color="#777" />
-          <TextInput
+          <SecureTextInput
             style={styles.input}
             placeholder="Enter new password"
             secureTextEntry={!showNewPassword}
@@ -93,7 +94,7 @@ const { email, otp } = useLocalSearchParams();
         <Text style={styles.label}>Confirm Password</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="lock-closed-outline" size={20} color="#777" />
-          <TextInput
+          <SecureTextInput
             style={styles.input}
             placeholder="Confirm new password"
             secureTextEntry={!showConfirmPassword}

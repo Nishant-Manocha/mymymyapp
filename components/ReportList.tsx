@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import API from "../api/api";
 import { FontAwesome5, MaterialIcons, Ionicons } from "@expo/vector-icons";
+import { apiCall } from "../utils/api";
 
 const ReportList: React.FC = () => {
   const [reports, setReports] = useState<any[]>([]);
@@ -9,8 +10,8 @@ const ReportList: React.FC = () => {
   useEffect(() => {
   const fetchReports = async () => {
     try {
-      const res = await fetch(`${SERVER_URL}/reports`);
-      const data = await res.json();
+      const { success, data, error } = await apiCall(`/reports`);
+      if (!success) throw new Error(error || 'Failed to fetch reports');
 
       if (Array.isArray(data)) {
         setReports(data);

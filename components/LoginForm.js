@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
 import OAuthButtons from "./OAuthButtons";
 import * as Clipboard from "expo-clipboard"; // ✅ Clipboard import
+import SecureTextInput from "./SecureTextInput";
 
 
 const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
@@ -39,7 +40,7 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
       <Text style={styles.label}>Email</Text>
       <View style={styles.inputWrapper}>
         <Ionicons name="mail-outline" size={20} color="#777" />
-        <TextInput
+        <SecureTextInput
           style={styles.input}
           placeholder="Enter your Email"
           value={email}
@@ -51,7 +52,7 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
       <Text style={styles.label}>Password</Text>
       <View style={styles.inputWrapper}>
         <Ionicons name="lock-closed-outline" size={20} color="#777" />
-        <TextInput
+        <SecureTextInput
           style={styles.input}
           placeholder="Enter your Password"
           secureTextEntry={!showPassword}
@@ -72,7 +73,6 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="off"
-          contextMenuHidden={true} // disables paste menu on long press (Android & iOS)
           textContentType="oneTimeCode"
           onFocus={async () => {
             await Clipboard.setStringAsync(""); // clear clipboard on focus

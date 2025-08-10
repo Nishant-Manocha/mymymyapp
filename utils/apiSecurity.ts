@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as Crypto from 'expo-crypto';
 import { SECURITY_CONFIG, getSecurityHeaders } from './securityConfig';
 import { encryptionService } from './encryption';
+import * as CryptoJS from 'crypto-js';
 
 export interface SecureApiConfig {
   baseURL: string;
@@ -46,7 +47,6 @@ export class SecureApiService {
           'X-Request-ID': await this.generateRequestId(),
           'X-Timestamp': Date.now().toString(),
         };
-        config.headers = hdrs as any;
 
         // Rate limiting check
         if (SECURITY_CONFIG.API.RATE_LIMIT.ENABLED) {
@@ -55,9 +55,24 @@ export class SecureApiService {
 
         // Encrypt request data if enabled
         if (SECURITY_CONFIG.API.ENCRYPTION.ENABLED && config.data) {
-          config.data = await this.encryptRequestData(config.data);
+          const sharedSecret = SECURITY_CONFIG.API.ENCRYPTION.SHARED_SECRET || process.env.API_SHARED_SECRET;
+          if (sharedSecret) {
+            // Use shared-secret AES for transport-level payload encryption
+            const { payload, ivBase64 } = await this.encryptWithSharedSecret(
+              typeof config.data === 'string' ? config.data : JSON.stringify(config.data),
+              sharedSecret
+            );
+            hdrs['X-Encrypted'] = '1';
+            hdrs['X-IV'] = ivBase64;
+            hdrs['Content-Type'] = 'text/plain';
+            config.data = payload;
+          } else {
+            // Fallback to device key encryption
+            config.data = await this.encryptRequestData(config.data);
+          }
         }
 
+        config.headers = hdrs as any;
         return config;
       },
       (error) => {
@@ -70,7 +85,13 @@ export class SecureApiService {
       async (response) => {
         // Decrypt response data if enabled
         if (SECURITY_CONFIG.API.ENCRYPTION.ENABLED && response.data) {
-          response.data = await this.decryptResponseData(response.data);
+          const sharedSecret = SECURITY_CONFIG.API.ENCRYPTION.SHARED_SECRET || process.env.API_SHARED_SECRET;
+          const isEncrypted = response.headers && (response.headers['x-encrypted'] === '1' || response.headers['X-Encrypted'] === '1');
+          if (sharedSecret && isEncrypted && typeof response.data === 'string') {
+            response.data = await this.decryptWithSharedSecret(response.data, sharedSecret, response.headers['x-iv'] || response.headers['X-IV']);
+          } else {
+            response.data = await this.decryptResponseData(response.data);
+          }
         }
 
         // Verify response integrity
@@ -97,6 +118,37 @@ export class SecureApiService {
         return Promise.reject(error);
       }
     );
+  }
+
+  // Shared-secret AES-256-CBC helpers
+  private async encryptWithSharedSecret(plaintext: string, secret: string): Promise<{ payload: string; ivBase64: string }> {
+    const ivWordArray = CryptoJS.lib.WordArray.random(16);
+    const keyWordArray = CryptoJS.SHA256(secret);
+    const cipherParams = CryptoJS.AES.encrypt(plaintext, keyWordArray, {
+      iv: ivWordArray,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    });
+    const payload = cipherParams.ciphertext.toString(CryptoJS.enc.Base64);
+    const ivBase64 = CryptoJS.enc.Base64.stringify(ivWordArray);
+    return { payload, ivBase64 };
+  }
+
+  private async decryptWithSharedSecret(ciphertextBase64: string, secret: string, ivBase64?: string): Promise<any> {
+    if (!ivBase64) throw new Error('Missing IV for shared-secret decryption');
+    const keyWordArray = CryptoJS.SHA256(secret);
+    const ivWordArray = CryptoJS.enc.Base64.parse(ivBase64);
+    const decrypted = CryptoJS.AES.decrypt({ ciphertext: CryptoJS.enc.Base64.parse(ciphertextBase64) } as any, keyWordArray, {
+      iv: ivWordArray,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    });
+    const text = CryptoJS.enc.Utf8.stringify(decrypted);
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text as any;
+    }
   }
 
   // Generate unique request ID

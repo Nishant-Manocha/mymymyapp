@@ -5,6 +5,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-nativ
 import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
 import { useRouter } from "expo-router"; // ✅ for navigation
+import SecureTextInput from "../../components/SecureTextInput";
 
 const ForgotPassword = ({ onBackToLogin }) => {
   const [email, setEmail] = useState("");
@@ -65,7 +66,7 @@ const ForgotPassword = ({ onBackToLogin }) => {
             <Text style={styles.label}>Email</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="mail-outline" size={20} color="#777" />
-              <TextInput
+              <SecureTextInput
                 style={styles.input}
                 placeholder="Enter your Email"
                 value={email}
@@ -85,7 +86,7 @@ const ForgotPassword = ({ onBackToLogin }) => {
             <Text style={styles.label}>Enter OTP</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="key-outline" size={20} color="#777" />
-              <TextInput
+              <SecureTextInput
                 style={styles.input}
                 placeholder="Enter OTP"
                 value={otp}

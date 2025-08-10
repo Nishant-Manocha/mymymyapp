@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
 import { signUp, sendOtp } from "../../redux/services/operations/authServices";
 import Toast from "react-native-toast-message";
+import SecureTextInput from "../../components/SecureTextInput";
 
 const OTPVerification = ({ onBackToSignup, onVerificationComplete }) => {
   const [otp, setOtp] = useState(["", "", "", ""]);
@@ -103,7 +104,7 @@ const OTPVerification = ({ onBackToSignup, onVerificationComplete }) => {
 
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
-            <TextInput
+            <SecureTextInput
               key={index}
               ref={(el) => (inputs.current[index] = el)}
               style={styles.otpInput}

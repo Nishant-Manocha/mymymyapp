@@ -25,6 +25,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 // import { set } from "mongoose";
 // import { Scenario, ScenarioChoice, scenarios } from '../data/scenarios';
+import { apiCall } from "../utils/api";
 
 const { width } = Dimensions.get("window");
 
@@ -50,17 +51,11 @@ export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({
     // Fetch scenario data from the server or local storage
     const fetchScenario = async () => {
       try {
-        const response = await fetch(
-          `${process.env.SERVER_URL}/scenarios/${scenarioId}`
-        );
-        const data = await response.json();
-        if (data.scenario) {
-          setCurrentScenario(data.scenario);
-          setTimeLeft(data.scenario.timeLimit || null);
-          setStartTime(new Date());
-        } else {
-          Alert.alert("Error", "Scenario not found");
-        }
+        const { success, data, error } = await apiCall(`/scenarios/${scenarioId}`);
+        if (!success) throw new Error(error || 'Failed to fetch scenario');
+        setCurrentScenario(data);
+        setTimeLeft(data.timeLimit || null);
+        setStartTime(new Date());
       } catch (error) {
         console.error("Failed to fetch scenario:", error);
         Alert.alert("Error", "Failed to load scenario data");
