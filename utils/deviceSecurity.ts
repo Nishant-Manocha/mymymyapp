@@ -1,7 +1,7 @@
 import { Platform, NativeModules } from 'react-native';
 import * as Device from 'expo-device';
 import * as Application from 'expo-application';
-import { ROOT_DETECTION_PATTERNS, JAILBREAK_DETECTION_PATTERNS, EMULATOR_DETECTION_PATTERNS, DEVELOPMENT_MODE_INDICATORS } from './securityConfig';
+import { ROOT_DETECTION_PATTERNS, JAILBREAK_DETECTION_PATTERNS, EMULATOR_DETECTION_PATTERNS, DEVELOPMENT_MODE_INDICATORS, SECURITY_CONFIG } from './securityConfig';
 
 export interface SecurityCheckResult {
   isSecure: boolean;
@@ -30,40 +30,48 @@ export class DeviceSecurityService {
     const details: Record<string, any> = {};
 
     try {
-      const rootCheck = await this.checkForRootJailbreak();
-      if (!rootCheck.isSecure) {
-        threats.push('Root/Jailbreak detected');
-        details.rootCheck = rootCheck;
+      if (SECURITY_CONFIG.DEVICE_SECURITY.ROOT_DETECTION_ENABLED || SECURITY_CONFIG.DEVICE_SECURITY.JAILBREAK_DETECTION_ENABLED) {
+        const rootCheck = await this.checkForRootJailbreak();
+        if (!rootCheck.isSecure) {
+          threats.push('Root/Jailbreak detected');
+          details.rootCheck = rootCheck;
+        }
       }
     } catch (error) {
       console.error('[DeviceSecurityService] Error during root/jailbreak check:', error);
     }
 
     try {
-      const emulatorCheck = await this.checkForEmulator();
-      if (!emulatorCheck.isSecure) {
-        threats.push('Emulator detected');
-        details.emulatorCheck = emulatorCheck;
+      if (SECURITY_CONFIG.DEVICE_SECURITY.EMULATOR_DETECTION_ENABLED) {
+        const emulatorCheck = await this.checkForEmulator();
+        if (!emulatorCheck.isSecure) {
+          threats.push('Emulator detected');
+          details.emulatorCheck = emulatorCheck;
+        }
       }
     } catch (error) {
       console.error('[DeviceSecurityService] Error during emulator check:', error);
     }
 
     try {
-      const devModeCheck = await this.checkDevelopmentMode();
-      if (!devModeCheck.isSecure) {
-        threats.push('Development mode detected');
-        details.devModeCheck = devModeCheck;
+      if (SECURITY_CONFIG.DEVICE_SECURITY.DEVELOPMENT_MODE_DETECTION_ENABLED) {
+        const devModeCheck = await this.checkDevelopmentMode();
+        if (!devModeCheck.isSecure) {
+          threats.push('Development mode detected');
+          details.devModeCheck = devModeCheck;
+        }
       }
     } catch (error) {
       console.error('[DeviceSecurityService] Error during development mode check:', error);
     }
 
     try {
-      const debugCheck = await this.checkDebugMode();
-      if (!debugCheck.isSecure) {
-        threats.push('Debug mode detected');
-        details.debugCheck = debugCheck;
+      if (SECURITY_CONFIG.DEVICE_SECURITY.DEBUG_MODE_DETECTION_ENABLED) {
+        const debugCheck = await this.checkDebugMode();
+        if (!debugCheck.isSecure) {
+          threats.push('Debug mode detected');
+          details.debugCheck = debugCheck;
+        }
       }
     } catch (error) {
       console.error('[DeviceSecurityService] Error during debug mode check:', error);
@@ -191,15 +199,15 @@ export class DeviceSecurityService {
     const threats: string[] = [];
     const details: Record<string, any> = {};
 
-    if (__DEV__) {
-      // threats.push('Application running in development mode');
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      threats.push('Application running in development mode');
       details.developmentMode = true;
     }
 
     if (Platform.OS === 'ios') {
       const devIndicators = DEVELOPMENT_MODE_INDICATORS.IOS || [];
       for (const indicator of devIndicators) {
-        if (process.env[indicator]) {
+        if ((process.env as any)[indicator]) {
           threats.push(`Development indicator found: ${indicator}`);
           details.devIndicators = details.devIndicators || [];
           details.devIndicators.push(indicator);
@@ -214,7 +222,7 @@ export class DeviceSecurityService {
 
       for (const indicator of devIndicators) {
         const [key, value] = indicator.split('=');
-        if (buildProps[key] === value) {
+        if ((buildProps as any)[key] === value) {
           threats.push(`Development build property: ${indicator}`);
           details.devBuildProps = details.devBuildProps || [];
           details.devBuildProps.push(indicator);
@@ -233,28 +241,25 @@ export class DeviceSecurityService {
     console.log('[DeviceSecurityService] Checking for debug mode');
     const threats: string[] = [];
     const details: Record<string, any> = {};
-  
+
     if (Platform.OS === 'android') {
       const buildProps = await this.getBuildProperties();
       console.log('[DeviceSecurityService] Android build properties for debug check:', buildProps);
-  
-      // Only add threat if NOT in development mode
-      if (buildProps.ro_debuggable === '1' && !__DEV__) {
+      if ((buildProps as any).ro_debuggable === '1') {
         threats.push('Application is debuggable');
         details.debuggable = true;
       }
     }
-  
+
     try {
-      // Only add threat if NOT in development mode
-      if (global.__DEV__ && global.__REACT_DEVTOOLS_GLOBAL_HOOK__ && !__DEV__) {
+      if (typeof (global as any).__REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined') {
         threats.push('React DevTools detected');
         details.reactDevTools = true;
       }
     } catch (error) {
       console.warn('[DeviceSecurityService] React DevTools check failed:', error);
     }
-  
+
     return {
       isSecure: threats.length === 0,
       threats,

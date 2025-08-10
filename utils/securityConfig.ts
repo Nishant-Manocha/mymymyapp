@@ -5,9 +5,9 @@ import * as Crypto from 'expo-crypto';
 export const SECURITY_CONFIG = {
   // AES-256 Encryption Configuration
   ENCRYPTION: {
-    ALGORITHM: 'AES-256-GCM',
+    ALGORITHM: 'AES-256-CBC',
     KEY_SIZE: 256,
-    IV_SIZE: 12,
+    IV_SIZE: 16,
     TAG_SIZE: 16,
     ITERATIONS: 100000,
   },
@@ -33,8 +33,12 @@ export const SECURITY_CONFIG = {
     TIMEOUT: 30000,
     RETRY_ATTEMPTS: 3,
     RATE_LIMIT: {
+      ENABLED: true,
       REQUESTS_PER_MINUTE: 60,
       BURST_LIMIT: 10,
+    },
+    ENCRYPTION: {
+      ENABLED: true,
     },
   },
 

@@ -48,4 +48,4 @@ config.transformer.enableBabelRCLookup = false;
 // Configure caching
 config.cacheStores = [];
 
-module.exports = getDefaultConfig(__dirname);
+module.exports = config;

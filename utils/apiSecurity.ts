@@ -40,12 +40,13 @@ export class SecureApiService {
     this.apiClient.interceptors.request.use(
       async (config) => {
         // Add security headers
-        config.headers = {
-          ...config.headers,
+        const hdrs: Record<string, any> = {
+          ...(config.headers as any),
           ...getSecurityHeaders(),
           'X-Request-ID': await this.generateRequestId(),
           'X-Timestamp': Date.now().toString(),
         };
+        config.headers = hdrs as any;
 
         // Rate limiting check
         if (SECURITY_CONFIG.API.RATE_LIMIT.ENABLED) {

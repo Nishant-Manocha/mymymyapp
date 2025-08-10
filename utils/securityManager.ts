@@ -245,9 +245,9 @@ export class SecurityManager {
     if (!SECURITY_CONFIG.ENCRYPTION.ALGORITHM.includes('AES-256')) {
       issues.push('OWASP A02: AES-256 encryption not properly configured');
     }
-
-    // A03:2021 – Injection
-    // This would require additional input validation checks
+    if (!SECURITY_CONFIG.API?.ENCRYPTION?.ENABLED) {
+      issues.push('OWASP A02: API request/response encryption not enabled');
+    }
 
     // A04:2021 – Insecure Design
     if (!SECURITY_CONFIG.DEVICE_SECURITY.ROOT_DETECTION_ENABLED) {
@@ -257,6 +257,9 @@ export class SecurityManager {
     // A05:2021 – Security Misconfiguration
     if (!SECURITY_CONFIG.APP_SECURITY.BACKUP_DISABLED) {
       issues.push('OWASP A05: App backup not disabled');
+    }
+    if (!SECURITY_CONFIG.API?.RATE_LIMIT?.ENABLED) {
+      issues.push('OWASP A05: API rate limiting not enabled');
     }
 
     return issues;
@@ -279,6 +282,27 @@ export class SecurityManager {
     // Check for minimum permissions
     if (SECURITY_CONFIG.PERMISSIONS.REQUIRED.length === 0) {
       issues.push('CERT-IN: Required permissions not defined');
+    }
+
+    // Validate app.json permissions (best-effort)
+    try {
+      // Relative to utils/ -> ../app.json
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const appConfig = require('../app.json');
+      const androidPerms: string[] = appConfig?.expo?.android?.permissions || [];
+      const required = new Set(SECURITY_CONFIG.PERMISSIONS.REQUIRED);
+
+      // Extra permissions present beyond required+optional
+      const allowed = new Set([
+        ...SECURITY_CONFIG.PERMISSIONS.REQUIRED,
+        ...SECURITY_CONFIG.PERMISSIONS.OPTIONAL,
+      ]);
+      const extras = androidPerms.filter((p: string) => !allowed.has(p));
+      if (extras.length > 0) {
+        issues.push(`CERT-IN: App requests non-required permissions: ${extras.join(', ')}`);
+      }
+    } catch (e) {
+      issues.push('CERT-IN: Could not automatically verify Android permissions (app.json not accessible at runtime)');
     }
 
     return issues;
@@ -310,7 +334,7 @@ export class SecurityManager {
   }
 
   // Check if security manager is initialized
-  public isInitialized(): boolean {
+  public isSecurityInitialized(): boolean {
     return this.isInitialized;
   }
 }

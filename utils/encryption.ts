@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import { SECURITY_CONFIG } from './securityConfig';
+import * as CryptoJS from 'crypto-js';
 
 // Encryption key management
 const ENCRYPTION_KEY_STORAGE_KEY = 'finguard_encryption_key';
@@ -8,8 +9,8 @@ const IV_STORAGE_KEY = 'finguard_encryption_iv';
 
 export class EncryptionService {
   private static instance: EncryptionService;
-  private encryptionKey: string | null = null;
-  private initializationVector: string | null = null;
+  private encryptionKeyBase64: string | null = null;
+  private initializationVectorBase64: string | null = null;
 
   private constructor() {}
 
@@ -23,12 +24,10 @@ export class EncryptionService {
   // Initialize encryption service
   public async initialize(): Promise<void> {
     try {
-      // Try to get existing encryption key
-      this.encryptionKey = await SecureStore.getItemAsync(ENCRYPTION_KEY_STORAGE_KEY);
-      this.initializationVector = await SecureStore.getItemAsync(IV_STORAGE_KEY);
+      this.encryptionKeyBase64 = await SecureStore.getItemAsync(ENCRYPTION_KEY_STORAGE_KEY);
+      this.initializationVectorBase64 = await SecureStore.getItemAsync(IV_STORAGE_KEY);
 
-      // If no key exists, generate new one
-      if (!this.encryptionKey) {
+      if (!this.encryptionKeyBase64 || !this.initializationVectorBase64) {
         await this.generateNewKeys();
       }
     } catch (error) {
@@ -37,104 +36,102 @@ export class EncryptionService {
     }
   }
 
+  private wordArrayFromRandomBytes = async (numBytes: number): Promise<CryptoJS.lib.WordArray> => {
+    const randomBytes = await Crypto.getRandomBytesAsync(numBytes);
+    // Convert Uint8Array to WordArray
+    const words: number[] = [];
+    for (let i = 0; i < randomBytes.length; i += 4) {
+      words.push(
+        ((randomBytes[i] || 0) << 24) |
+          ((randomBytes[i + 1] || 0) << 16) |
+          ((randomBytes[i + 2] || 0) << 8) |
+          (randomBytes[i + 3] || 0)
+      );
+    }
+    return CryptoJS.lib.WordArray.create(words, randomBytes.length);
+  };
+
   // Generate new encryption keys
   private async generateNewKeys(): Promise<void> {
     try {
-      // Generate encryption key
-      const keyBytes = await Crypto.getRandomBytesAsync(32);
-      this.encryptionKey = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        keyBytes.toString(),
-        { encoding: Crypto.CryptoEncoding.BASE64 }
-      );
+      // 32 bytes = 256-bit key
+      const keyWordArray = await this.wordArrayFromRandomBytes(32);
+      const ivWordArray = await this.wordArrayFromRandomBytes(SECURITY_CONFIG.ENCRYPTION.IV_SIZE);
 
-      // Generate initialization vector
-      const ivBytes = await Crypto.getRandomBytesAsync(SECURITY_CONFIG.ENCRYPTION.IV_SIZE);
-      this.initializationVector = Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        ivBytes.toString(),
-        { encoding: Crypto.CryptoEncoding.BASE64 }
-      );
+      this.encryptionKeyBase64 = CryptoJS.enc.Base64.stringify(keyWordArray);
+      this.initializationVectorBase64 = CryptoJS.enc.Base64.stringify(ivWordArray);
 
-      // Store keys securely
-      await SecureStore.setItemAsync(ENCRYPTION_KEY_STORAGE_KEY, this.encryptionKey);
-      await SecureStore.setItemAsync(IV_STORAGE_KEY, this.initializationVector);
+      await SecureStore.setItemAsync(ENCRYPTION_KEY_STORAGE_KEY, this.encryptionKeyBase64);
+      await SecureStore.setItemAsync(IV_STORAGE_KEY, this.initializationVectorBase64);
     } catch (error) {
       console.error('Failed to generate encryption keys:', error);
       throw new Error('Key generation failed');
     }
   }
 
-  // Encrypt data using AES-256-GCM
+  private getKeyWordArray(): CryptoJS.lib.WordArray {
+    if (!this.encryptionKeyBase64) throw new Error('Encryption service not initialized');
+    return CryptoJS.enc.Base64.parse(this.encryptionKeyBase64);
+  }
+
+  private getIvWordArray(): CryptoJS.lib.WordArray {
+    if (!this.initializationVectorBase64) throw new Error('Encryption service not initialized');
+    return CryptoJS.enc.Base64.parse(this.initializationVectorBase64);
+  }
+
+  // Encrypt data using AES-256-CBC
   public async encrypt(data: string): Promise<string> {
-    if (!this.encryptionKey || !this.initializationVector) {
+    if (!this.encryptionKeyBase64 || !this.initializationVectorBase64) {
       throw new Error('Encryption service not initialized');
     }
 
     try {
-      // Generate a new IV for each encryption
-      const ivBytes = await Crypto.getRandomBytesAsync(SECURITY_CONFIG.ENCRYPTION.IV_SIZE);
-      const iv = Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        ivBytes.toString(),
-        { encoding: Crypto.CryptoEncoding.BASE64 }
-      );
+      // Fresh IV per encryption for forward secrecy
+      const ivWordArray = await this.wordArrayFromRandomBytes(SECURITY_CONFIG.ENCRYPTION.IV_SIZE);
+      const keyWordArray = this.getKeyWordArray();
 
-      // Create a combined key from encryption key and IV
-      const combinedKey = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        this.encryptionKey + iv,
-        { encoding: Crypto.CryptoEncoding.BASE64 }
-      );
+      const cipherParams = CryptoJS.AES.encrypt(data, keyWordArray, {
+        iv: ivWordArray,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+      });
 
-      // Encrypt the data
-      const encryptedData = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        data + combinedKey,
-        { encoding: Crypto.CryptoEncoding.BASE64 }
-      );
+      const ciphertextBase64 = cipherParams.ciphertext.toString(CryptoJS.enc.Base64);
+      const ivBase64 = CryptoJS.enc.Base64.stringify(ivWordArray);
 
-      // Combine IV and encrypted data
-      const result = iv + ':' + encryptedData;
-      
-      return result;
+      // result format: iv:ciphertext
+      return `${ivBase64}:${ciphertextBase64}`;
     } catch (error) {
       console.error('Encryption failed:', error);
       throw new Error('Data encryption failed');
     }
   }
 
-  // Decrypt data using AES-256-GCM
+  // Decrypt data using AES-256-CBC
   public async decrypt(encryptedData: string): Promise<string> {
-    if (!this.encryptionKey || !this.initializationVector) {
+    if (!this.encryptionKeyBase64 || !this.initializationVectorBase64) {
       throw new Error('Encryption service not initialized');
     }
 
     try {
-      // Split IV and encrypted data
-      const parts = encryptedData.split(':');
-      if (parts.length !== 2) {
+      const [ivBase64, ciphertextBase64] = encryptedData.split(':');
+      if (!ivBase64 || !ciphertextBase64) {
         throw new Error('Invalid encrypted data format');
       }
+      const ivWordArray = CryptoJS.enc.Base64.parse(ivBase64);
+      const keyWordArray = this.getKeyWordArray();
 
-      const iv = parts[0];
-      const data = parts[1];
-
-      // Recreate the combined key
-      const combinedKey = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        this.encryptionKey + iv,
-        { encoding: Crypto.CryptoEncoding.BASE64 }
+      const decrypted = CryptoJS.AES.decrypt(
+        { ciphertext: CryptoJS.enc.Base64.parse(ciphertextBase64) } as any,
+        keyWordArray,
+        {
+          iv: ivWordArray,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7,
+        }
       );
 
-      // Decrypt the data (simplified for demo - in production use proper AES implementation)
-      const decryptedData = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        data + combinedKey,
-        { encoding: Crypto.CryptoEncoding.BASE64 }
-      );
-
-      return decryptedData;
+      return CryptoJS.enc.Utf8.stringify(decrypted);
     } catch (error) {
       console.error('Decryption failed:', error);
       throw new Error('Data decryption failed');
@@ -171,10 +168,7 @@ export class EncryptionService {
   // Rotate encryption keys
   public async rotateKeys(): Promise<void> {
     try {
-      // Generate new keys
       await this.generateNewKeys();
-      
-      // Re-encrypt all stored sensitive data (implementation depends on your data storage)
       console.log('Encryption keys rotated successfully');
     } catch (error) {
       console.error('Key rotation failed:', error);
@@ -187,8 +181,8 @@ export class EncryptionService {
     try {
       await SecureStore.deleteItemAsync(ENCRYPTION_KEY_STORAGE_KEY);
       await SecureStore.deleteItemAsync(IV_STORAGE_KEY);
-      this.encryptionKey = null;
-      this.initializationVector = null;
+      this.encryptionKeyBase64 = null;
+      this.initializationVectorBase64 = null;
     } catch (error) {
       console.error('Failed to clear encryption keys:', error);
     }
