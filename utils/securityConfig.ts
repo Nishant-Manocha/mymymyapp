@@ -39,6 +39,7 @@ export const SECURITY_CONFIG = {
     },
     ENCRYPTION: {
       ENABLED: true,
+      SHARED_SECRET: '', // Set via env at runtime for request/response encryption
     },
   },
 
