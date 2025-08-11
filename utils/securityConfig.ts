@@ -17,14 +17,31 @@ export const SECURITY_CONFIG = {
     ENABLED: true,
     CERTIFICATES: {
       PRODUCTION: [
-        'sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=', // Replace with actual certificate hash
-        'sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=', // Backup certificate
+        'mainfineduguard-1.onrender.com.crt', // Your main domain certificate
+        'mainfineduguard-1.onrender.com-chain.crt', // Certificate chain if you have it
       ],
       STAGING: [
-        'sha256/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC=', // Staging certificate
+        'staging-mainfineduguard-1.onrender.com.crt', // Staging certificate if different
       ],
     },
     TIMEOUT: 10000,
+    // Add validation configuration for certificate files
+    VALIDATION: {
+      ENABLED: true,
+      STRICT_MODE: true, // Reject connection if pinning fails
+      FALLBACK_TO_SYSTEM: false, // Don't fall back to system CA store
+      LOG_VIOLATIONS: true, // Log pinning violations for debugging
+      CERT_PATH: 'android/app/src/main/assets/certs', // Path to certificate files
+    },
+    // Certificate validation settings
+    CERT_VALIDATION: {
+      CHECK_EXPIRY: true,
+      CHECK_REVOCATION: true,
+      ALLOW_SELF_SIGNED: false,
+      VERIFY_HOSTNAME: true,
+      // Certificate file extensions to look for
+      SUPPORTED_FORMATS: ['.crt', '.pem', '.cer', '.der'],
+    }
   },
 
   // API Security Configuration
