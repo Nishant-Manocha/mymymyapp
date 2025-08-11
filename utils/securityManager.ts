@@ -3,6 +3,7 @@ import { deviceSecurityService, SecurityCheckResult } from './deviceSecurity';
 import { secureApiService } from './apiSecurity';
 import { appSecurityService } from './appSecurity';
 import { SECURITY_CONFIG } from './securityConfig';
+import sslPinningService from './sslPinningService';
 
 export interface SecurityStatus {
   isSecure: boolean;
@@ -44,6 +45,10 @@ export class SecurityManager {
       // Initialize app security features
       await appSecurityService.initialize();
       console.log('✓ App security features initialized');
+
+      // Initialize SSL pinning service
+      await sslPinningService.initialize();
+      console.log('✓ SSL Pinning service initialized');
 
       // Perform initial security check
       const securityCheck = await this.performSecurityCheck();
@@ -91,7 +96,7 @@ export class SecurityManager {
 
     // Check encryption status
     const encryptionEnabled = SECURITY_CONFIG.DATA_PROTECTION.SENSITIVE_DATA_ENCRYPTION;
-    const sslPinningEnabled = SECURITY_CONFIG.SSL_PINNING.ENABLED;
+    const sslPinningEnabled = sslPinningService.isEnabled();
 
     return {
       isSecure: violations.length === 0,
@@ -335,6 +340,10 @@ export class SecurityManager {
     return SECURITY_CONFIG;
   }
 
+  public getSSLPinningStatus() {
+    return sslPinningService.getStatus();
+  }
+
   // Check if security manager is initialized
   public isSecurityInitialized(): boolean {
     return this.isInitialized;
@@ -395,6 +404,10 @@ export const rotateEncryptionKeys = async (): Promise<void> => {
 
 export const clearSecurityData = async (): Promise<void> => {
   return await securityManager.clearSecurityData();
+};
+
+export const getSSLPinningStatus = () => {
+  return securityManager.getSSLPinningStatus();
 };
 
 export const validateSecurityRequirements = async (): Promise<{
