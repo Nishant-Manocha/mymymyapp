@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Modal } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
 import { formatDistance, calculateDistance } from '../utils/distance';
 
 const MapContainer = ({ userLocation, center, nearbyCells }) => {
   const [selectedCell, setSelectedCell] = useState(null);
 
   const handleNavigate = (cell) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${cell.lat},${cell.lng}&travelmode=driving`;
+    const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLocation?.latitude || center.latitude}%2C${userLocation?.longitude || center.longitude}%3B${cell.lat}%2C${cell.lng}`;
     Linking.openURL(url);
   };
 
@@ -20,7 +20,6 @@ const MapContainer = ({ userLocation, center, nearbyCells }) => {
 
       <MapView
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
         region={{
           latitude: center.latitude,
           longitude: center.longitude,
@@ -30,6 +29,8 @@ const MapContainer = ({ userLocation, center, nearbyCells }) => {
         showsUserLocation
         showsMyLocationButton
       >
+        <UrlTile urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} flipY={false} />
+
         {/* User Marker */}
         {userLocation && (
           <Marker

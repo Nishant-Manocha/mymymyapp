@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, UrlTile } from "react-native-maps";
 import API from "../api/api";
 import { FontAwesome5, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -24,28 +24,26 @@ const ScamMap: React.FC = () => {
   const [timeRange, setTimeRange] = useState("all");
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
-useEffect(() => {
-  const fetchReports = async () => {
-    try {
-      const res = await API.get("/reports");
-      const data = res.data;
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const res = await API.get("/reports");
+        const data = res.data;
 
-      if (Array.isArray(data)) {
-        data.forEach((report: any) => addReport(report));
-      } else {
-        console.warn("Fetched reports is not an array");
+        if (Array.isArray(data)) {
+          data.forEach((report: any) => addReport(report));
+        } else {
+          console.warn("Fetched reports is not an array");
+        }
+      } catch (error) {
+        console.error("Error fetching reports", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching reports", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  fetchReports();
-}, []);
-
-
+    fetchReports();
+  }, []);
 
   const filteredReports = useMemo(() => {
     const safeReports = Array.isArray(reports) ? reports : [];
@@ -151,6 +149,7 @@ useEffect(() => {
           longitudeDelta: 5,
         }}
       >
+        <UrlTile urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maximumZ={19} flipY={false} />
         {filteredReports.map((report: any, index: any) => (
           <Marker
             key={report._id || index}

@@ -16,6 +16,10 @@ import com.facebook.soloader.SoLoader
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException
+import com.google.android.gms.common.GooglePlayServicesRepairableException
+import com.google.android.gms.security.ProviderInstaller
+
 class MainApplication : Application(), ReactApplication {
 
   override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
@@ -47,6 +51,18 @@ class MainApplication : Application(), ReactApplication {
       // If you opted-in for the New Architecture, we load the native entry point for this app.
       load()
     }
+
+    // Ensure up-to-date security provider to fix SSL initialization errors on older devices
+    try {
+      ProviderInstaller.installIfNeeded(applicationContext)
+    } catch (e: GooglePlayServicesRepairableException) {
+      // Ignored: Play Services can prompt user to update
+    } catch (e: GooglePlayServicesNotAvailableException) {
+      // Ignored: Device without Play Services
+    } catch (t: Throwable) {
+      // Ignore other failures, app will use built-in provider
+    }
+
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
   }
 
