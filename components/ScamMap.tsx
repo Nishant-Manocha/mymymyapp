@@ -24,12 +24,11 @@ const ScamMap: React.FC = () => {
   const [timeRange, setTimeRange] = useState("all");
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
-  useEffect(() => {
+useEffect(() => {
   const fetchReports = async () => {
     try {
-      const SERVER_URL = process.env.SERVER_URL;
-      const res = await fetch(`${SERVER_URL}/reports`);
-      const data = await res.json();
+      const res = await API.get("/reports");
+      const data = res.data;
 
       if (Array.isArray(data)) {
         data.forEach((report: any) => addReport(report));
@@ -45,6 +44,7 @@ const ScamMap: React.FC = () => {
 
   fetchReports();
 }, []);
+
 
 
   const filteredReports = useMemo(() => {

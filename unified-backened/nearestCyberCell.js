@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 module.exports = (app) => {
-  const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+  const API_KEY = process.env.GOOGLE_MAPS_KEY;
 
   app.get("/api/nearby-cybercells", async (req, res) => {
     const { lat, lng, radius = 100000 } = req.query;

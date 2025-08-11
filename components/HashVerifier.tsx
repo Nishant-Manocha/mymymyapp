@@ -8,26 +8,19 @@ import {
   Alert,
 } from "react-native";
 import { Search, CheckCircle2, XCircle } from "lucide-react-native";
+import API from "../api/api"; // adjust path if needed
 import { useDocumentStorage } from "../hooks/useDocumentStorage";
-import { BACKEND_URL } from "./config";
 
 async function verifyDocument(data: any) {
-  const response = await fetch("http://localhost:3000/api/verify", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  return response.json();
+  const res = await API.post("/verify", data);
+  return res.data;
 }
 
 async function saveDocumentToBackend(document: any) {
-  const response = await fetch("http://localhost:5000/api/documents", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(document),
-  });
-  return response.json();
+  const res = await API.post("/documents", document);
+  return res.data;
 }
+
 
 export interface VerificationResult {
   isMatch: boolean;
@@ -61,13 +54,6 @@ export const HashVerifier = ({
   const [backendConnected, setBackendConnected] = useState(false);
 
   // Update the backend connection check to use your local IP
-  useEffect(() => {
-    fetch(`${BACKEND_URL}/api/health`)
-      .then((res) => {
-        if (res.ok) setBackendConnected(true);
-      })
-      .catch(() => setBackendConnected(false));
-  }, []);
 
   const verifyHash = async () => {
     if (!inputHash.trim()) return;
@@ -82,28 +68,26 @@ export const HashVerifier = ({
     // 2. If not found locally, try backend
     if (!isMatch) {
       try {
-        const response = await fetch(
-          `${BACKEND_URL}/api/documents/hash/${normalizedInput}`
-        );
-        if (response.ok) {
-          const backendDoc = await response.json();
-          if (backendDoc && backendDoc.hash) {
-            savedDocument = {
-              id: backendDoc._id || backendDoc.hash,
-              filename: backendDoc.filename,
-              hash: backendDoc.hash,
-              walletAddress: backendDoc.walletAddress || "",
-              timestamp: backendDoc.timestamp,
-              size: backendDoc.size,
-              type: backendDoc.type,
-            };
-            isMatch = true;
-          }
+        const res = await API.get(`/documents/hash/${normalizedInput}`);
+        const backendDoc = res.data;
+
+        if (backendDoc && backendDoc.hash) {
+          savedDocument = {
+            id: backendDoc._id || backendDoc.hash,
+            filename: backendDoc.filename,
+            hash: backendDoc.hash,
+            walletAddress: backendDoc.walletAddress || "",
+            timestamp: backendDoc.timestamp,
+            size: backendDoc.size,
+            type: backendDoc.type,
+          };
+          isMatch = true;
         }
       } catch (error) {
         // Optionally handle error
       }
     }
+
 
     const result: VerificationResult = {
       isMatch,
@@ -113,12 +97,12 @@ export const HashVerifier = ({
       confidence: isMatch ? 100 : 0,
       savedDocument: savedDocument
         ? {
-            id: savedDocument.id,
-            filename: savedDocument.filename,
-            timestamp: savedDocument.timestamp,
-            size: savedDocument.size,
-            type: savedDocument.type, // Ensure type is always included
-          }
+          id: savedDocument.id,
+          filename: savedDocument.filename,
+          timestamp: savedDocument.timestamp,
+          size: savedDocument.size,
+          type: savedDocument.type, // Ensure type is always included
+        }
         : undefined,
     };
 

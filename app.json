@@ -85,9 +85,7 @@
       }
     },
     "owner": "pankaj465",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/3ad0067d-07f5-4288-a8f4-5ff668dac412"
     }

@@ -9,10 +9,11 @@ import API from "../../../api/api";
 
 const fetchCourse = async (courseId) => {
   console.log("Fetching course with ID:", courseId);
-  const response = await fetch(`${process.env.SERVER_URL}/courses/${courseId}`);
-  const data = await response.json();
-  return data;
+  const res = await API.get(`/courses/${courseId}`);
+  return res.data;
 };
+
+
 
 export default function Lesson() {
   // const [courses, setCourses] = useState([]);

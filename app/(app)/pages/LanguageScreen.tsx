@@ -13,6 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Shield, ChevronDown, Globe } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { languages } from "../../../data/lessonsData";
+import API from "../../../api/api";
+
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -22,12 +24,19 @@ const LanguageScreen: React.FC = ({ navigation }: any) => {
   const [currentLessons, setCurrentLessons] = useState<any[]>([]);
   const [fadeAnim] = useState(new Animated.Value(0));
 
-  useEffect(() => {
-    fetch(`${process.env.SERVER_URL}/lessons?language=${selectedLanguage}`)
-      .then((response) => response.json())
-      .then((data) => setCurrentLessons(data.lessons))
-      .catch((error) => console.error("Error loading lessons:", error));
+    useEffect(() => {
+    (async () => {
+      try {
+        const res = await API.get("/lessons", {
+          params: { language: selectedLanguage },
+        });
+        setCurrentLessons(res.data?.lessons || []);
+      } catch (error) {
+        console.error("Error loading lessons:", error);
+      }
+    })();
   }, [selectedLanguage]);
+
 
   useEffect(() => {
     Animated.timing(fadeAnim, {

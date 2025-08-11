@@ -18,7 +18,7 @@ import axios from "axios";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { useReports } from "../contexts/ReportContext";
 import { useNavigation } from "@react-navigation/native";
-import SecureTextInput from "./SecureTextInput";
+// import SecureTextInput from "./SecureTextInput";
 
 const SCAM_TYPES = [
   { label: "Phishing Attack", value: "phishing" },
@@ -222,7 +222,7 @@ const ReportForm: React.FC = () => {
       />
 
       <Text style={styles.label}>Your Contact Info</Text>
-      <SecureTextInput
+      <TextInput
         style={styles.input}
         placeholder="Phone or Email"
         value={contactInfo}
@@ -231,7 +231,7 @@ const ReportForm: React.FC = () => {
 
       <Text style={styles.label}>Address</Text>
       <View style={styles.addressContainer}>
-        <SecureTextInput
+        <TextInput
           style={styles.inputAddress}
           placeholder="Search or enter address..."
           value={address}

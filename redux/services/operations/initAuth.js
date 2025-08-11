@@ -1,53 +1,51 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorageService, { STORAGE_KEYS } from "../../../utils/AsyncStorage";
 import { setToken } from "../../slices/authSlice";
 import { setUser } from "../../slices/profileSlices";
 
 /**
- * Initialize authentication state from AsyncStorage
- * This function should be called when the app starts
+ * Initializes auth state from AsyncStorage with backward compatibility.
+ * - Token: accepts string or coerces other types to string
+ * - User: accepts object; if string and looks JSON, parses; otherwise clears
  */
 export const initializeAuth = () => async (dispatch) => {
   try {
-    console.log("Initializing auth from AsyncStorage...");
+    const [storedToken, storedUser] = await Promise.all([
+      AsyncStorageService.getItem(STORAGE_KEYS.USER_TOKEN),
+      AsyncStorageService.getItem(STORAGE_KEYS.USER_PROFILE),
+    ]);
 
-    // Get token from AsyncStorage
-    const token = await AsyncStorage.getItem("user_token");
-    console.log(
-      "Token from AsyncStorage:",
-      token ? "Found" : "Not found",
-      token
-    );
+    console.log("[AUTH INIT]", {
+      tokenType: typeof storedToken,
+      userType: typeof storedUser,
+      tokenSample: typeof storedToken === "string" ? storedToken.slice(0, 10) : undefined,
+    });
 
-    const userString = await AsyncStorage.getItem("user_profile");
-    console.log(
-      "User data from AsyncStorage:",
-      userString ? "Found" : "Not found"
-    );
-
-    if (token) {
-      // Parse token if it was stored as JSON string
-      const parsedToken = token.startsWith("{") ? JSON.parse(token) : token;
-      console.log("Setting token in Redux store");
-      dispatch(setToken(parsedToken));
-
-      // If we also have user data, set it in Redux
-      if (userString) {
-        const user = JSON.parse(userString);
-        console.log("Setting user data in Redux store:", user.email);
-        dispatch(setUser(user));
-      } else {
-        console.log("No user data found in AsyncStorage");
-      }
-
-      console.log("Auth successfully initialized from AsyncStorage");
-      return { success: true };
-    } else {
-      console.log("No token found in AsyncStorage, user is not authenticated");
+    if (storedToken) {
+      const token = typeof storedToken === "string" ? storedToken : String(storedToken);
+      dispatch(setToken(token));
     }
-  } catch (error) {
-    console.error("Failed to initialize auth from AsyncStorage:", error);
-    return { error: "Failed to initialize auth" };
-  }
 
-  return { success: false };
+    if (storedUser && typeof storedUser === "object") {
+      dispatch(setUser(storedUser));
+    } else if (storedUser && typeof storedUser === "string") {
+      const trimmed = storedUser.trim();
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        try {
+          const obj = JSON.parse(trimmed);
+          dispatch(setUser(obj));
+        } catch {
+          console.warn("[AUTH INIT] user string not valid JSON, clearing");
+          await AsyncStorageService.removeItem(STORAGE_KEYS.USER_PROFILE);
+        }
+      } else {
+        console.warn("[AUTH INIT] user is non-JSON string, clearing");
+        await AsyncStorageService.removeItem(STORAGE_KEYS.USER_PROFILE);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to initialize auth from AsyncStorage:", e);
+    // Clear corrupted keys to recover next launch
+    await AsyncStorageService.removeItem(STORAGE_KEYS.USER_TOKEN);
+    await AsyncStorageService.removeItem(STORAGE_KEYS.USER_PROFILE);
+  }
 };

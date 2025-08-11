@@ -39,18 +39,18 @@ export const SECURITY_CONFIG = {
     },
     ENCRYPTION: {
       ENABLED: true,
-      SHARED_SECRET: '', // Set via env at runtime for request/response encryption
+      SHARED_SECRET: 'ChangeThisToAStrongSecret', // Set via env at runtime for request/response encryption
     },
   },
 
   // Root/Jailbreak Detection
-  DEVICE_SECURITY: {
-    ROOT_DETECTION_ENABLED: true,
-    JAILBREAK_DETECTION_ENABLED: true,
-    EMULATOR_DETECTION_ENABLED: true,
-    DEBUG_MODE_DETECTION_ENABLED: true,
-    DEVELOPMENT_MODE_DETECTION_ENABLED: true,
-  },
+DEVICE_SECURITY: {
+  ROOT_DETECTION_ENABLED: true,
+  JAILBREAK_DETECTION_ENABLED: true,
+  EMULATOR_DETECTION_ENABLED: true,
+  DEBUG_MODE_DETECTION_ENABLED: !__DEV__,
+  DEVELOPMENT_MODE_DETECTION_ENABLED: !__DEV__,
+},
 
   // App Security Settings
   APP_SECURITY: {

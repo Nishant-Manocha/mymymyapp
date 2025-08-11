@@ -21,7 +21,7 @@ export class SecurityManager {
   private static instance: SecurityManager;
   private isInitialized: boolean = false;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): SecurityManager {
     if (!SecurityManager.instance) {
@@ -49,7 +49,9 @@ export class SecurityManager {
       const securityCheck = await this.performSecurityCheck();
       if (!securityCheck.isSecure) {
         console.warn('Security violations detected:', securityCheck.violations);
-        throw new Error('Device security check failed');
+        if (!__DEV__) {
+          throw new Error('Device security check failed');
+        }
       }
 
       this.isInitialized = true;

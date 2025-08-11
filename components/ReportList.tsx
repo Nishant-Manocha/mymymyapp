@@ -2,30 +2,27 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import API from "../api/api";
 import { FontAwesome5, MaterialIcons, Ionicons } from "@expo/vector-icons";
-import { apiCall } from "../utils/api";
 
 const ReportList: React.FC = () => {
   const [reports, setReports] = useState<any[]>([]);
-  const SERVER_URL = process.env.SERVER_URL;
+
   useEffect(() => {
-  const fetchReports = async () => {
-    try {
-      const { success, data, error } = await apiCall(`/reports`);
-      if (!success) throw new Error(error || 'Failed to fetch reports');
-
-      if (Array.isArray(data)) {
-        setReports(data);
-      } else {
-        console.warn("Fetched reports is not an array");
+    const fetchReports = async () => {
+      try {
+        const res = await API.get("/reports");
+        const data = res.data;
+        if (Array.isArray(data)) {
+          setReports(data);
+        } else {
+          console.warn("Fetched reports is not an array");
+        }
+      } catch (error) {
+        console.error("Error fetching reports", error);
       }
-    } catch (error) {
-      console.error("Error fetching reports", error);
-    }
-  };
+    };
 
-  fetchReports();
-}, []);
-
+    fetchReports();
+  }, []);
 
   const renderIcon = (type: string) => {
     const iconStyle = {
@@ -121,7 +118,6 @@ const styles = StyleSheet.create({
     padding: 16, 
     backgroundColor: "#f8fafc" 
   },
-
   heading: { 
     fontSize: 22, 
     fontWeight: "700", 
@@ -130,7 +126,6 @@ const styles = StyleSheet.create({
     color: "#1f2937",
     letterSpacing: 0.3,
   },
-
   card: {
     flexDirection: "row",
     backgroundColor: "white",
@@ -146,18 +141,15 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: "#3B82F6",
   },
-
   icon: { 
     marginRight: 12, 
     justifyContent: "center", 
     alignItems: "center" 
   },
-
   info: { 
     flex: 1, 
     justifyContent: "center" 
   },
-
   title: { 
     fontSize: 16, 
     fontWeight: "700", 
@@ -165,7 +157,6 @@ const styles = StyleSheet.create({
     color: "#1f2937",
     textTransform: "capitalize",
   },
-
   desc: { 
     fontSize: 14, 
     color: "#6b7280",
@@ -173,14 +164,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontWeight: "500",
   },
-
   contact: { 
     fontSize: 13, 
     color: "#2563eb", 
     marginTop: 4,
     fontWeight: "600",
   },
-
   location: { 
     fontSize: 12, 
     color: "#9ca3af", 
@@ -189,5 +178,5 @@ const styles = StyleSheet.create({
   },
 });
 
-
 export default ReportList;
+

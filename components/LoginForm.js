@@ -4,20 +4,15 @@ import { login } from "../redux/services/operations/authServices";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  Platform,
-  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
 import OAuthButtons from "./OAuthButtons";
-import * as Clipboard from "expo-clipboard"; // ✅ Clipboard import
 import SecureTextInput from "./SecureTextInput";
 
-
-const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
+const LoginForm = ({ onSwitchToSignup, onForgotPassword }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -25,7 +20,6 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
   const dispatch = useDispatch();
   const loading = useSelector((state) => state.auth?.loading);
   const token = useSelector((state) => state.auth?.token);
-
 
   useEffect(() => {
     if (token) {
@@ -35,8 +29,60 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
     }
   }, [token]);
 
+  const handleLogin = async () => {
+    if (!email) {
+      Toast.show({ type: "error", text1: "Enter your email!" });
+      return;
+    }
+    if (!password) {
+      Toast.show({ type: "error", text1: "Enter your password!" });
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Toast.show({ type: "error", text1: "Enter a valid email address!" });
+      return;
+    }
+    if (password.length < 6) {
+      Toast.show({
+        type: "error",
+        text1: "Password must be at least 6 characters!",
+      });
+      return;
+    }
+
+    const response = await dispatch(login(email, password));
+    if (response?.error) {
+      const errorMessage = response.error.toLowerCase();
+      if (
+        errorMessage.includes("user not found") ||
+        errorMessage.includes("no user") ||
+        errorMessage.includes("doesn't exist")
+      ) {
+        Toast.show({
+          type: "error",
+          text1: "User not found",
+          text2: "Please sign up first",
+          onPress: () => onSwitchToSignup(),
+        });
+      } else if (
+        errorMessage.includes("incorrect password") ||
+        errorMessage.includes("invalid password") ||
+        errorMessage.includes("wrong password")
+      ) {
+        Toast.show({
+          type: "error",
+          text1: "Incorrect password",
+          text2: "Please try again or reset your password",
+          onPress: () => onForgotPassword(),
+        });
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
+      {/* Email Field */}
       <Text style={styles.label}>Email</Text>
       <View style={styles.inputWrapper}>
         <Ionicons name="mail-outline" size={20} color="#777" />
@@ -49,6 +95,7 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
         />
       </View>
 
+      {/* Password Field */}
       <Text style={styles.label}>Password</Text>
       <View style={styles.inputWrapper}>
         <Ionicons name="lock-closed-outline" size={20} color="#777" />
@@ -57,34 +104,9 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
           placeholder="Enter your Password"
           secureTextEntry={!showPassword}
           value={password}
-          onChangeText={async (text) => {
-            const clipboardContent = await Clipboard.getStringAsync();
-            if (text === clipboardContent) {
-              Toast.show({
-                type: "error",
-                text1: "Pasting is disabled!",
-              });
-              setPassword(""); // Clear field
-              await Clipboard.setStringAsync(""); // Clear clipboard
-              return;
-            }
-            setPassword(text);
-          }}
+          onChangeText={setPassword}
           autoCapitalize="none"
           autoCorrect={false}
-          autoComplete="off"
-          textContentType="oneTimeCode"
-          onFocus={async () => {
-            await Clipboard.setStringAsync(""); // clear clipboard on focus
-          }}
-          onSelectionChange={({ nativeEvent: { selection } }) => {
-            if (selection.start !== selection.end) {
-              // prevent selection/paste attack
-              setTimeout(() => {
-                setPassword((prev) => prev);
-              }, 0);
-            }
-          }}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Ionicons
@@ -95,13 +117,16 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
         </TouchableOpacity>
       </View>
 
+      {/* Remember Me & Forgot Password */}
       <View style={styles.row}>
         <View style={styles.checkboxRow}>
           <TouchableOpacity
             style={[styles.checkbox, rememberMe && styles.checkboxChecked]}
             onPress={() => setRememberMe(!rememberMe)}
           >
-            {rememberMe && <Ionicons name="checkmark" size={16} color="#fff" />}
+            {rememberMe && (
+              <Ionicons name="checkmark" size={16} color="#fff" />
+            )}
           </TouchableOpacity>
           <Text style={styles.checkboxLabel}>Remember me</Text>
         </View>
@@ -110,60 +135,18 @@ const LoginForm = ({ onSwitchToSignup, onForgotPassword, onLoginSuccess }) => {
         </Text>
       </View>
 
+      {/* Sign In Button */}
       <TouchableOpacity
         style={styles.button}
-        onPress={async () => {
-          if (!email) {
-            Toast.show({ type: "error", text1: "Enter your email!" });
-            return;
-          }
-          if (!password) {
-            Toast.show({ type: "error", text1: "Enter your password!" });
-            return;
-          }
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(email)) {
-            Toast.show({ type: "error", text1: "Enter a valid email address!" });
-            return;
-          }
-          if (password.length < 6) {
-            Toast.show({ type: "error", text1: "Password must be at least 6 characters!" });
-            return;
-          }
-
-          const response = await dispatch(login(email, password));
-          if (response?.error) {
-            const errorMessage = response.error.toLowerCase();
-            if (
-              errorMessage.includes("user not found") ||
-              errorMessage.includes("no user") ||
-              errorMessage.includes("doesn't exist")
-            ) {
-              Toast.show({
-                type: "error",
-                text1: "User not found",
-                text2: "Please sign up first",
-                onPress: () => onSwitchToSignup(),
-              });
-            } else if (
-              errorMessage.includes("incorrect password") ||
-              errorMessage.includes("invalid password") ||
-              errorMessage.includes("wrong password")
-            ) {
-              Toast.show({
-                type: "error",
-                text1: "Incorrect password",
-                text2: "Please try again or reset your password",
-                onPress: () => onForgotPassword(),
-              });
-            }
-          }
-        }}
+        onPress={handleLogin}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>{loading ? "Signing In..." : "Sign In"}</Text>
+        <Text style={styles.buttonText}>
+          {loading ? "Signing In..." : "Sign In"}
+        </Text>
       </TouchableOpacity>
 
+      {/* Sign Up Link */}
       <Text style={styles.signupText}>
         Don't have an account?{" "}
         <Text style={styles.link} onPress={onSwitchToSignup}>
@@ -210,6 +193,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     marginLeft: 10,
+    paddingVertical: 0, // ✅ keeps vertical alignment consistent
     color: "#1e2a3a",
   },
   row: {

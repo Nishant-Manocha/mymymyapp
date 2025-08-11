@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as Crypto from 'expo-crypto';
 import { SECURITY_CONFIG, getSecurityHeaders } from './securityConfig';
@@ -53,48 +54,89 @@ export class SecureApiService {
           await this.checkRateLimit(config.url || '');
         }
 
-        // Encrypt request data if enabled
-        if (SECURITY_CONFIG.API.ENCRYPTION.ENABLED && config.data) {
-          const sharedSecret = SECURITY_CONFIG.API.ENCRYPTION.SHARED_SECRET || process.env.API_SHARED_SECRET;
-          if (sharedSecret) {
-            // Use shared-secret AES for transport-level payload encryption
+        // Transport encryption ONLY when shared secret is set
+        // Transport encryption ONLY when shared secret is set
+        const sharedSecret =
+          SECURITY_CONFIG.API.ENCRYPTION.SHARED_SECRET || process.env.API_SHARED_SECRET;
+        console.log('[TX] sharedSecret=', sharedSecret);
+
+        if (SECURITY_CONFIG.API.ENCRYPTION.ENABLED && sharedSecret) {
+          // Always request encrypted responses
+          hdrs['X-Encrypted'] = '1';
+
+          if (config.data) {
+            // Encrypt request body when present (POST/PUT)
             const { payload, ivBase64 } = await this.encryptWithSharedSecret(
               typeof config.data === 'string' ? config.data : JSON.stringify(config.data),
               sharedSecret
             );
-            hdrs['X-Encrypted'] = '1';
             hdrs['X-IV'] = ivBase64;
             hdrs['Content-Type'] = 'text/plain';
             config.data = payload;
+
+            console.log(
+              '[TX] encrypted=1',
+              'iv.len=', ivBase64?.length,
+              'ctype=', hdrs['Content-Type'],
+              'body.sample=', String(config.data).slice(0, 60)
+            );
           } else {
-            // Fallback to device key encryption
-            config.data = await this.encryptRequestData(config.data);
+            // GET/DELETE: no body, but we still want encrypted response
+            console.log('[TX] encrypted=1', 'no-body');
           }
+        } else {
+          console.log(
+            '[TX] encrypted=0',
+            'ctype=',
+            (hdrs['Content-Type'] || (config.headers as any)?.['Content-Type']) ?? 'application/json'
+          );
         }
+
 
         config.headers = hdrs as any;
         return config;
       },
-      (error) => {
-        return Promise.reject(error);
-      }
+      (error) => Promise.reject(error)
     );
 
     // Response interceptor
     this.apiClient.interceptors.response.use(
       async (response) => {
-        // Decrypt response data if enabled
-        if (SECURITY_CONFIG.API.ENCRYPTION.ENABLED && response.data) {
-          const sharedSecret = SECURITY_CONFIG.API.ENCRYPTION.SHARED_SECRET || process.env.API_SHARED_SECRET;
-          const isEncrypted = response.headers && (response.headers['x-encrypted'] === '1' || response.headers['X-Encrypted'] === '1');
-          if (sharedSecret && isEncrypted && typeof response.data === 'string') {
-            response.data = await this.decryptWithSharedSecret(response.data, sharedSecret, response.headers['x-iv'] || response.headers['X-IV']);
-          } else {
-            response.data = await this.decryptResponseData(response.data);
-          }
+        // Decrypt ONLY if server marked the response as encrypted and shared secret is set
+        const sharedSecret =
+          SECURITY_CONFIG.API.ENCRYPTION.SHARED_SECRET || process.env.API_SHARED_SECRET;
+        const isEncrypted =
+          !!(
+            response.headers &&
+            ((response.headers['x-encrypted'] as any) === '1' ||
+              (response.headers['X-Encrypted'] as any) === '1')
+          );
+        const ivHeader = (response.headers &&
+          ((response.headers['x-iv'] as any) ||
+            (response.headers['X-IV'] as any))) as string | undefined;
+
+        // RX header log
+        console.log(
+          '[RX] header.encrypted=', isEncrypted,
+          'hasIV=', !!ivHeader,
+          'data.type=', typeof response.data
+        );
+
+        if (SECURITY_CONFIG.API.ENCRYPTION.ENABLED && sharedSecret && isEncrypted && typeof response.data === 'string') {
+          const beforeSample = String(response.data).slice(0, 60);
+          response.data = await this.decryptWithSharedSecret(response.data, sharedSecret, ivHeader);
+          // RX decrypted log
+          console.log(
+            '[RX] decrypted',
+            'before.sample=', beforeSample,
+            'after.type=', typeof response.data
+          );
+        } else {
+          // RX plaintext log
+          console.log('[RX] plaintext', 'type=', typeof response.data);
         }
 
-        // Verify response integrity
+        // Verify response integrity if header present
         if (response.headers['x-response-hash']) {
           const isValid = await this.verifyResponseIntegrity(response);
           if (!isValid) {
@@ -105,49 +147,121 @@ export class SecureApiService {
         return response;
       },
       async (error) => {
-        // Handle SSL pinning errors
+        // Detailed client error log
+        try {
+          const resp = error.response;
+          const reqCfg = error.config || {};
+          const headers = (resp && resp.headers) || {};
+          const reqId = headers['x-request-id'] || reqCfg.headers?.['X-Request-ID'];
+          const isEncrypted = headers['x-encrypted'] === '1' || headers['X-Encrypted'] === '1';
+          const iv = headers['x-iv'] || headers['X-IV'];
+
+          console.error('[CLIENT ERR]', {
+            status: resp?.status,
+            url: reqCfg?.baseURL ? (reqCfg.baseURL + reqCfg.url) : reqCfg.url,
+            method: reqCfg?.method,
+            reqId,
+            isEncrypted,
+            hasIV: !!iv,
+            respType: typeof resp?.data,
+            respDataSample: typeof resp?.data === 'string' ? String(resp.data).slice(0, 120) : undefined,
+            respJsonKeys: resp?.data && typeof resp.data === 'object' ? Object.keys(resp.data) : undefined,
+          });
+        } catch (e) {
+          console.error('[CLIENT ERR] logging failure', e);
+        }
+
         if (error.code === 'CERTIFICATE_VERIFY_FAILED') {
           throw new Error('SSL certificate verification failed');
         }
-
-        // Handle rate limit errors
         if (error.response?.status === 429) {
           throw new Error('Rate limit exceeded');
         }
-
         return Promise.reject(error);
       }
     );
   }
 
-  // Shared-secret AES-256-CBC helpers
-  private async encryptWithSharedSecret(plaintext: string, secret: string): Promise<{ payload: string; ivBase64: string }> {
-    const ivWordArray = CryptoJS.lib.WordArray.random(16);
-    const keyWordArray = CryptoJS.SHA256(secret);
-    const cipherParams = CryptoJS.AES.encrypt(plaintext, keyWordArray, {
-      iv: ivWordArray,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7,
-    });
-    const payload = cipherParams.ciphertext.toString(CryptoJS.enc.Base64);
-    const ivBase64 = CryptoJS.enc.Base64.stringify(ivWordArray);
-    return { payload, ivBase64 };
+  // Shared-secret AES-256-CBC helpers (IV from Expo RNG)
+  private async encryptWithSharedSecret(
+    plaintext: string,
+    secret: string
+  ): Promise<{ payload: string; ivBase64: string }> {
+    try {
+      const ivBytes = await Crypto.getRandomBytesAsync(16);
+      const words: number[] = [];
+      for (let i = 0; i < ivBytes.length; i += 4) {
+        words.push(
+          ((ivBytes[i] || 0) << 24) |
+          ((ivBytes[i + 1] || 0) << 16) |
+          ((ivBytes[i + 2] || 0) << 8) |
+          (ivBytes[i + 3] || 0)
+        );
+      }
+      const ivWordArray = CryptoJS.lib.WordArray.create(words, ivBytes.length);
+      const keyWordArray = CryptoJS.SHA256(secret);
+      const cipherParams = CryptoJS.AES.encrypt(plaintext, keyWordArray, {
+        iv: ivWordArray,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+      });
+      const payload = cipherParams.ciphertext.toString(CryptoJS.enc.Base64);
+      const ivBase64 = CryptoJS.enc.Base64.stringify(ivWordArray);
+
+      // ENC debug
+      console.log('[CLIENT ENC]', {
+        plainLen: plaintext.length,
+        ivLen: ivBase64.length,
+        ctSample: payload.slice(0, 80),
+      });
+
+      return { payload, ivBase64 };
+    } catch (e: any) {
+      console.error('[CLIENT ENC] failed', { msg: e?.message });
+      throw e;
+    }
   }
 
-  private async decryptWithSharedSecret(ciphertextBase64: string, secret: string, ivBase64?: string): Promise<any> {
-    if (!ivBase64) throw new Error('Missing IV for shared-secret decryption');
-    const keyWordArray = CryptoJS.SHA256(secret);
-    const ivWordArray = CryptoJS.enc.Base64.parse(ivBase64);
-    const decrypted = CryptoJS.AES.decrypt({ ciphertext: CryptoJS.enc.Base64.parse(ciphertextBase64) } as any, keyWordArray, {
-      iv: ivWordArray,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7,
-    });
-    const text = CryptoJS.enc.Utf8.stringify(decrypted);
+  private async decryptWithSharedSecret(
+    ciphertextBase64: string,
+    secret: string,
+    ivBase64?: string
+  ): Promise<any> {
     try {
-      return JSON.parse(text);
-    } catch {
-      return text as any;
+      if (!ivBase64) throw new Error('Missing IV for shared-secret decryption');
+      const keyWordArray = CryptoJS.SHA256(secret);
+      const ivWordArray = CryptoJS.enc.Base64.parse(ivBase64);
+      const decrypted = CryptoJS.AES.decrypt(
+        { ciphertext: CryptoJS.enc.Base64.parse(ciphertextBase64) } as any,
+        keyWordArray,
+        {
+          iv: ivWordArray,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7,
+        }
+      );
+      const text = CryptoJS.enc.Utf8.stringify(decrypted);
+
+      // DEC debug
+      console.log('[CLIENT DEC]', {
+        hasIV: !!ivBase64,
+        ctSample: String(ciphertextBase64 || '').slice(0, 80),
+        outType: 'string',
+        outLen: text?.length ?? 0,
+      });
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text as any;
+      }
+    } catch (e: any) {
+      console.error('[CLIENT DEC] failed', {
+        msg: e?.message,
+        hasIV: !!ivBase64,
+        ctSample: String(ciphertextBase64 || '').slice(0, 120),
+      });
+      throw e;
     }
   }
 
@@ -165,40 +279,36 @@ export class SecureApiService {
   private async checkRateLimit(url: string): Promise<void> {
     const now = Date.now();
     const key = this.getRateLimitKey(url);
-    
-    // Clean old entries
+
     if (this.lastRequestTime.has(key)) {
       const lastTime = this.lastRequestTime.get(key) || 0;
-      if (now - lastTime > 60000) { // 1 minute
+      if (now - lastTime > 60000) {
         this.requestCount.delete(key);
         this.lastRequestTime.delete(key);
       }
     }
 
-    // Check current count
     const currentCount = this.requestCount.get(key) || 0;
     if (currentCount >= SECURITY_CONFIG.API.RATE_LIMIT.REQUESTS_PER_MINUTE) {
       throw new Error('Rate limit exceeded');
     }
 
-    // Update counters
     this.requestCount.set(key, currentCount + 1);
     this.lastRequestTime.set(key, now);
   }
 
   private getRateLimitKey(url: string): string {
-    // Extract endpoint from URL for rate limiting
     const endpoint = url.split('?')[0].split('/').pop() || 'default';
     return endpoint;
   }
 
-  // Encrypt request data
+  // Encrypt request data with device key (used for local storage, not transport)
   private async encryptRequestData(data: any): Promise<string> {
     const jsonString = JSON.stringify(data);
     return await encryptionService.encrypt(jsonString);
   }
 
-  // Decrypt response data
+  // Decrypt response data with device key (used if your API actually returns encrypted blobs)
   private async decryptResponseData(encryptedData: string): Promise<any> {
     const decryptedString = await encryptionService.decrypt(encryptedData);
     return JSON.parse(decryptedString);
@@ -212,41 +322,38 @@ export class SecureApiService {
     return actualHash === expectedHash;
   }
 
-  // Secure GET request
+  // Secure GET/POST/PUT/DELETE
   public async secureGet<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await this.apiClient.get<T>(url, config);
-      return response.data;
+      return response.data as unknown as T;
     } catch (error) {
       throw this.handleApiError(error);
     }
   }
 
-  // Secure POST request
   public async securePost<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await this.apiClient.post<T>(url, data, config);
-      return response.data;
+      return response.data as unknown as T;
     } catch (error) {
       throw this.handleApiError(error);
     }
   }
 
-  // Secure PUT request
   public async securePut<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await this.apiClient.put<T>(url, data, config);
-      return response.data;
+      return response.data as unknown as T;
     } catch (error) {
       throw this.handleApiError(error);
     }
   }
 
-  // Secure DELETE request
   public async secureDelete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await this.apiClient.delete<T>(url, config);
-      return response.data;
+      return response.data as unknown as T;
     } catch (error) {
       throw this.handleApiError(error);
     }
@@ -255,10 +362,8 @@ export class SecureApiService {
   // Handle API errors
   private handleApiError(error: any): Error {
     if (error.response) {
-      // Server responded with error status
       const status = error.response.status;
       const message = error.response.data?.message || 'API request failed';
-      
       switch (status) {
         case 401:
           return new Error('Authentication required');
@@ -274,30 +379,24 @@ export class SecureApiService {
           return new Error(`API error: ${status} - ${message}`);
       }
     } else if (error.request) {
-      // Network error
       return new Error('Network connection failed');
     } else {
-      // Other error
       return new Error(error.message || 'Unknown error occurred');
     }
   }
 
-  // Set authentication token
   public setAuthToken(token: string): void {
     this.apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
 
-  // Clear authentication token
   public clearAuthToken(): void {
     delete this.apiClient.defaults.headers.common['Authorization'];
   }
 
-  // Update base URL
   public updateBaseURL(baseURL: string): void {
     this.apiClient.defaults.baseURL = baseURL;
   }
 
-  // Get current API client
   public getApiClient(): AxiosInstance {
     return this.apiClient;
   }
@@ -306,7 +405,7 @@ export class SecureApiService {
 // Export singleton instance
 export const secureApiService = SecureApiService.getInstance();
 
-// Utility functions for common API operations
+// Utility functions
 export const secureGet = async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
   return await secureApiService.secureGet<T>(url, config);
 };

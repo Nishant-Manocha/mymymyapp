@@ -2,19 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { encryptionService } from './encryption';
 
 /**
- * AsyncStorage utility class for handling local storage operations
+ * AsyncStorage utility class with encryption and backward-compatible reads
  */
 class AsyncStorageService {
   /**
-   * Store data in AsyncStorage
-   * @param {string} key - The key to store the data under
-   * @param {any} value - The value to store (will be JSON stringified)
-   * @returns {Promise<boolean>} - Returns true if successful, false otherwise
+   * Store data (always encrypted)
    */
   static async setItem(key, value) {
     try {
       const jsonValue = JSON.stringify(value);
-      // Ensure encryption service is available
       try { await encryptionService.initialize(); } catch {}
       const payload = await encryptionService.encrypt(jsonValue);
       await AsyncStorage.setItem(key, payload);
@@ -26,18 +22,40 @@ class AsyncStorageService {
   }
 
   /**
-   * Retrieve data from AsyncStorage
-   * @param {string} key - The key to retrieve data for
-   * @returns {Promise<any|null>} - Returns the parsed data or null if not found/error
+   * Retrieve data
+   * - Tries decrypt → JSON
+   * - Fallback: plain JSON
+   * - Fallback: raw string
+   * - Migrates plain values to encrypted
    */
   static async getItem(key) {
     try {
-      const payload = await AsyncStorage.getItem(key);
-      if (payload == null) return null;
-      // Ensure encryption service is available
-      try { await encryptionService.initialize(); } catch {}
-      const jsonValue = await encryptionService.decrypt(payload);
-      return jsonValue != null ? JSON.parse(jsonValue) : null;
+      const stored = await AsyncStorage.getItem(key);
+      if (stored == null) return null;
+
+      // Try encrypted first
+      try {
+        await encryptionService.initialize();
+        const decrypted = await encryptionService.decrypt(stored);
+        try {
+          return JSON.parse(decrypted);
+        } catch {
+          // Not JSON, return raw decrypted string
+          return decrypted;
+        }
+      } catch {
+        // Not encrypted or bad ciphertext → try plain JSON
+        try {
+          const parsed = JSON.parse(stored);
+          // Migrate to encrypted
+          await this.setItem(key, parsed);
+          return parsed;
+        } catch {
+          // Plain string (e.g., token). Migrate to encrypted string.
+          await this.setItem(key, stored);
+          return stored;
+        }
+      }
     } catch (error) {
       console.error('Error retrieving data:', error);
       return null;
@@ -45,9 +63,7 @@ class AsyncStorageService {
   }
 
   /**
-   * Remove an item from AsyncStorage
-   * @param {string} key - The key to remove
-   * @returns {Promise<boolean>} - Returns true if successful, false otherwise
+   * Remove an item
    */
   static async removeItem(key) {
     try {
@@ -60,8 +76,7 @@ class AsyncStorageService {
   }
 
   /**
-   * Clear all data from AsyncStorage
-   * @returns {Promise<boolean>} - Returns true if successful, false otherwise
+   * Clear all
    */
   static async clear() {
     try {
@@ -74,8 +89,7 @@ class AsyncStorageService {
   }
 
   /**
-   * Get all keys from AsyncStorage
-   * @returns {Promise<string[]|null>} - Returns array of keys or null if error
+   * Get all keys
    */
   static async getAllKeys() {
     try {
@@ -88,25 +102,36 @@ class AsyncStorageService {
   }
 
   /**
-   * Get multiple items from AsyncStorage
-   * @param {string[]} keys - Array of keys to retrieve
-   * @returns {Promise<Object|null>} - Returns object with key-value pairs or null if error
+   * Get multiple (backward-compatible)
    */
   static async getMultiple(keys) {
     try {
-      const values = await AsyncStorage.multiGet(keys);
+      const pairs = await AsyncStorage.multiGet(keys);
       const result = {};
-      try { await encryptionService.initialize(); } catch {}
-      for (const [key, value] of values) {
-        if (value) {
-          try {
-            const jsonValue = await encryptionService.decrypt(value);
-            result[key] = jsonValue ? JSON.parse(jsonValue) : null;
-          } catch {
-            result[key] = null;
-          }
-        } else {
+      for (const [key, value] of pairs) {
+        if (value == null) {
           result[key] = null;
+          continue;
+        }
+        // Try encrypted first
+        try {
+          await encryptionService.initialize();
+          const decrypted = await encryptionService.decrypt(value);
+          try {
+            result[key] = JSON.parse(decrypted);
+          } catch {
+            result[key] = decrypted;
+          }
+        } catch {
+          // Fallback to plain JSON or string; migrate
+          try {
+            const parsed = JSON.parse(value);
+            await this.setItem(key, parsed);
+            result[key] = parsed;
+          } catch {
+            await this.setItem(key, value);
+            result[key] = value;
+          }
         }
       }
       return result;
@@ -117,19 +142,17 @@ class AsyncStorageService {
   }
 
   /**
-   * Set multiple items in AsyncStorage
-   * @param {Object} keyValuePairs - Object with key-value pairs to store
-   * @returns {Promise<boolean>} - Returns true if successful, false otherwise
+   * Set multiple (always encrypted)
    */
   static async setMultiple(keyValuePairs) {
     try {
       try { await encryptionService.initialize(); } catch {}
-      const pairs = [];
+      const out = [];
       for (const [key, value] of Object.entries(keyValuePairs)) {
         const payload = await encryptionService.encrypt(JSON.stringify(value));
-        pairs.push([key, payload]);
+        out.push([key, payload]);
       }
-      await AsyncStorage.multiSet(pairs);
+      await AsyncStorage.multiSet(out);
       return true;
     } catch (error) {
       console.error('Error setting multiple items:', error);
@@ -137,11 +160,6 @@ class AsyncStorageService {
     }
   }
 
-  /**
-   * Check if a key exists in AsyncStorage
-   * @param {string} key - The key to check
-   * @returns {Promise<boolean>} - Returns true if key exists, false otherwise
-   */
   static async hasKey(key) {
     try {
       const keys = await AsyncStorage.getAllKeys();
@@ -152,10 +170,6 @@ class AsyncStorageService {
     }
   }
 
-  /**
-   * Get storage size information
-   * @returns {Promise<Object|null>} - Returns storage info or null if error
-   */
   static async getStorageSize() {
     try {
       const keys = await AsyncStorage.getAllKeys();
@@ -178,7 +192,7 @@ class AsyncStorageService {
   }
 }
 
-// Common storage keys for the FinGuard app
+// Common storage keys
 export const STORAGE_KEYS = {
   USER_TOKEN: 'user_token',
   USER_PROFILE: 'user_profile',

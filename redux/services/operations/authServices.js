@@ -27,6 +27,7 @@ const getErrorMessage = (error, fallback = "Something went wrong") => {
  */
 export const login = (email, password) => async (dispatch) => {
   dispatch(setLoading(true));
+  console.log("🚀 [login] Called with email:", email);
   Toast.show({ type: "info", text1: "Logging in..." });
 
   try {
@@ -34,6 +35,8 @@ export const login = (email, password) => async (dispatch) => {
       email,
       password,
     });
+
+    console.log("✅ [login] API Response:", response);
 
     Toast.show({ type: "success", text1: "Login Successful" });
     dispatch(setToken(response.data.token));

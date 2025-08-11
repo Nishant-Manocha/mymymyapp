@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Text, ScrollView, StatusBar } from "react-native";
+import { View, StyleSheet, Text, StatusBar } from "react-native";
 import MapContainer from "../../../components/MapContainer";
 import SearchBox from "../../../components/SearchBox";
 import CyberCellList from "../../../components/CyberCellList";
@@ -7,6 +7,7 @@ import GeolocationButton from "../../../components/GeolocationButton";
 import { calculateDistance } from "../../../utils/distance";
 import "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import API from "../../../api/api"; // adjust the path if needed
 
 export default function App() {
   const [userLocation, setUserLocation] = useState(null);
@@ -18,29 +19,24 @@ export default function App() {
   const [currentAddress, setCurrentAddress] = useState("");
 
   // ✅ Fetch cyber cells from backend
-  const fetchCyberCells = async (lat, lng) => {
+  const fetchCyberCells = async (lat: number, lng: number) => {
+    try {
+      const res = await API.get("/nearby-cybercells", {
+        params: { lat, lng, radius: 10000 },
+      });
 
-  try {
-    const SERVER_URL = process.env.SERVER_URL;
-    const res = await fetch(
-      `${SERVER_URL}/nearby-cybercells?lat=${lat}&lng=${lng}&radius=10000`
-    );
+      const data = res.data || [];
 
-    if (!res.ok) throw new Error("Network response was not ok");
+      const updatedCells = data.map((cell: any) => ({
+        ...cell,
+        distance: calculateDistance(lat, lng, cell.lat, cell.lng),
+      }));
 
-    const data = await res.json();
-
-    const updatedCells = data.map((cell) => ({
-      ...cell,
-      distance: calculateDistance(lat, lng, cell.lat, cell.lng),
-    }));
-
-    setNearbyCells(updatedCells);
-  } catch (error) {
-    console.error("❌ Failed to fetch cyber cells:", error.message);
-  }
-};
-
+      setNearbyCells(updatedCells);
+    } catch (error: any) {
+      console.error("❌ Failed to fetch cyber cells:", error?.message || error);
+    }
+  };
 
   const handleLocationSelect = (location) => {
     setUserLocation(location);
@@ -81,15 +77,12 @@ export default function App() {
         </View>
 
         {/* Cyber Cell List Section */}
-        <ScrollView
-          style={styles.sidebar}
-          contentContainerStyle={{ paddingBottom: 10 }}
-        >
+        <View style={styles.sidebar}>
           <CyberCellList
             nearbyCells={nearbyCells}
             userLocation={userLocation}
           />
-        </ScrollView>
+        </View>
       </View>
     </SafeAreaView>
   );

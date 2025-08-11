@@ -1,126 +1,87 @@
-import React, { forwardRef, useState } from 'react';
-import { TextInput, TextInputProps, View, Text, StyleSheet } from 'react-native';
-import { getSecureTextInputProps, showSecurityWarning } from '../utils/appSecurity';
+import React, { forwardRef, useRef, useState } from "react";
+import { TextInput, TextInputProps } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { getSecureTextInputProps, showSecurityWarning } from "../utils/appSecurity";
 
 interface SecureTextInputProps extends TextInputProps {
-  label?: string;
-  error?: string;
   secure?: boolean;
-  showSecurityIndicator?: boolean;
 }
 
-export const SecureTextInput = forwardRef<TextInput, SecureTextInputProps>(
-  ({ label, error, secure = false, showSecurityIndicator = true, ...props }, ref) => {
-    const [isFocused, setIsFocused] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+const SecureTextInput = forwardRef<TextInput, SecureTextInputProps>(
+  ({ secure = false, value: propValue, onChangeText, onFocus, onBlur, style, ...props }, ref) => {
+    const inputRef = useRef<TextInput>(null);
+    const mergedRef = (ref as React.RefObject<TextInput>) || inputRef;
+
+    const [value, setValue] = useState<string>((propValue ?? "").toString());
+    const lastValueRef = useRef<string>(value);
 
     const secureProps = getSecureTextInputProps();
 
-    const handleFocus = () => {
-      setIsFocused(true);
-      props.onFocus?.(undefined as any);
+    const clearClipboard = async () => {
+      try {
+        await Clipboard.setStringAsync("");
+      } catch {}
     };
 
-    const handleBlur = () => {
-      setIsFocused(false);
-      props.onBlur?.(undefined as any);
+    const handleFocus = async (e: any) => {
+      if (secure) {
+        await clearClipboard();
+        setTimeout(clearClipboard, 100);
+        setTimeout(clearClipboard, 300);
+      }
+      onFocus?.(e);
     };
 
-    const handleLongPress = () => {
-      showSecurityWarning('Copy/paste is disabled for security reasons');
+    const handleBlur = (e: any) => {
+      onBlur?.(e);
+    };
+
+    const isLikelyPaste = (prev: string, next: string, clip: string | null) => {
+      if (!secure) return false;
+      if (next.length - prev.length > 1) return true;
+      if (clip && clip.length > 1 && next.includes(clip)) return true;
       return false;
     };
 
-    const handleSelectionChange = () => {
-      showSecurityWarning('Text selection is disabled for security reasons');
-      return false;
+    const handleChangeText = async (next: string) => {
+      if (secure) {
+        let clip: string | null = null;
+        try {
+          clip = await Clipboard.getStringAsync();
+        } catch {}
+        if (isLikelyPaste(lastValueRef.current, next, clip)) {
+          await clearClipboard();
+          showSecurityWarning("Pasting is disabled for security reasons");
+          setValue(lastValueRef.current);
+          return;
+        }
+      }
+      setValue(next);
+      lastValueRef.current = next;
+      onChangeText?.(next);
     };
 
     return (
-      <View style={styles.container}>
-        {label && (
-          <Text style={[styles.label, error && styles.labelError]}>
-            {label}
-            {showSecurityIndicator && (
-              <Text style={styles.securityIndicator}> 🔒</Text>
-            )}
-          </Text>
-        )}
-        <View style={[
-          styles.inputContainer,
-          isFocused && styles.inputContainerFocused,
-          error && styles.inputContainerError
-        ]}>
-          <TextInput
-            ref={ref}
-            style={[styles.input, props.style]}
-            secureTextEntry={secure && !showPassword}
-            {...secureProps}
-            {...props}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-
-            placeholderTextColor="#999"
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            contextMenuHidden={true}
-            selectTextOnFocus={false}
-          />
-        </View>
-        {error && (
-          <Text style={styles.errorText}>{error}</Text>
-        )}
-      </View>
+      <TextInput
+        ref={mergedRef}
+        style={style}
+        secureTextEntry={secure}
+        {...secureProps}
+        {...props}
+        value={value}
+        onChangeText={handleChangeText}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        contextMenuHidden={secure}
+        selectTextOnFocus={false}
+        autoCorrect={false}
+        autoCapitalize="none"
+        spellCheck={false}
+      />
     );
   }
 );
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  labelError: {
-    color: '#d32f2f',
-  },
-  securityIndicator: {
-    fontSize: 12,
-  },
-  inputContainer: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  inputContainerFocused: {
-    borderColor: '#007AFF',
-    borderWidth: 2,
-  },
-  inputContainerError: {
-    borderColor: '#d32f2f',
-    borderWidth: 2,
-  },
-  input: {
-    fontSize: 16,
-    color: '#333',
-    padding: 0,
-    margin: 0,
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#d32f2f',
-    marginTop: 4,
-  },
-});
-
-SecureTextInput.displayName = 'SecureTextInput';
-
+SecureTextInput.displayName = "SecureTextInput";
 export default SecureTextInput;
+

@@ -7,7 +7,8 @@ import { HashVerifier } from "./HashVerifier";
 import { VerificationReport, VerificationResult } from "./VerificationReport";
 import { DocumentVault } from "./DocumentVault";
 import { useDocumentStorage } from "../hooks/useDocumentStorage";
-import { BACKEND_URL } from "./config";
+import API from "../api/api";
+
 
 interface FileInfo {
   uri: string;
@@ -20,22 +21,14 @@ async function saveDocumentToBackend(document: any) {
   console.log("Sending to backend:", document);
 
   try {
-    const SERVER_URL = process.env.SERVER_URL;
-    if (!SERVER_URL) throw new Error("SERVER_URL is not defined in environment variables.");
+    const res = await API.post("/documents", document);
 
-    const response = await fetch(`${SERVER_URL}/documents`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(document),
-    });
-
-    const contentType = response.headers.get("content-type");
-    if (!contentType?.includes("application/json")) {
-      const text = await response.text();
-      throw new Error("Expected JSON, got: " + text);
+    // Axios parses JSON automatically; validate shape if needed
+    const data = res?.data;
+    if (data == null || typeof data === "string") {
+      throw new Error("Expected JSON, got: " + String(data));
     }
 
-    const data = await response.json();
     console.log("Backend response:", data);
     return data;
   } catch (error) {
@@ -43,6 +36,7 @@ async function saveDocumentToBackend(document: any) {
     throw error;
   }
 }
+
 
 export const DocHashVerifier = () => {
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);

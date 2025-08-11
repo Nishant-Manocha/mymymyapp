@@ -36,22 +36,22 @@ const QuizDetailScreen = () => {
   const [showExplanation, setShowExplanation] = useState(false);
 
   useEffect(() => {
-    const fetchQuiz = async () => {
-      try {
-        const response = await fetch(
-          `${process.env.SERVER_URL}/quizzes/${quizId}`
-        );
-        const data = await response.json();
-        console.log("Fetched quiz data:", data);
-        setQuiz(data.quiz);
-      } catch (error) {
-        console.error("Error fetching quiz:", error);
-        Alert.alert("Error", "Failed to load quiz. Please try again later.");
-      }
-    };
+  const fetchQuiz = async () => {
+    try {
+      const res = await API.get(`/quizzes/${quizId}`);
+      const data = res.data;
+      console.log("Fetched quiz data:", data);
+      setQuiz(data?.quiz);
+    } catch (error) {
+      console.error("Error fetching quiz:", error);
+      Alert.alert("Error", "Failed to load quiz. Please try again later.");
+    }
+  };
 
-    fetchQuiz();
-  }, [quizId]);
+  fetchQuiz();
+}, [quizId]);
+
+
 
   console.log("Quiz ID:", quiz);
   // const quiz = quizzes.find((q) => q.id === quizId);

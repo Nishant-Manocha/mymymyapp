@@ -32,7 +32,7 @@ import { Badge } from "./ui/Badge";
 import { Progress } from "./ui/Progress";
 import { Alert as CustomAlert, AlertTitle, AlertDescription } from "./ui/Alert";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
-import { BACKEND_URL } from "./config";
+import API from "../api/api"; // adjust the path if needed
 
 interface AnalysisResult {
   score: number;
@@ -232,11 +232,10 @@ export function FraudAnalyzer() {
     const typeText = type === "email" ? "Email" : "Website";
 
     if (level === "safe") {
-      return `${typeText} analysis complete. ${
-        flagCount === 0
-          ? "No security issues detected."
-          : `${flagCount} minor issue(s) found.`
-      } This appears to be legitimate and safe to interact with.`;
+      return `${typeText} analysis complete. ${flagCount === 0
+        ? "No security issues detected."
+        : `${flagCount} minor issue(s) found.`
+        } This appears to be legitimate and safe to interact with.`;
     } else if (level === "suspicious") {
       return `${typeText} analysis complete. Found ${flagCount} security concern(s). Exercise caution and verify authenticity through official channels before taking any action.`;
     } else {
@@ -254,12 +253,8 @@ export function FraudAnalyzer() {
     setProgress(0);
     setEmailResult(null);
     try {
-      const response = await fetch(`${process.env.SERVER_URL}/check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: emailContent.trim() }),
-      });
-      const data = await response.json();
+      const res = await API.post("/check", { input: emailContent.trim() });
+      const data = res.data;
       console.log("API response:", data);
       setEmailResult({
         score: data.final_score,
@@ -287,18 +282,13 @@ export function FraudAnalyzer() {
       } as AnalysisHistory;
       setHistory((prev) => [historyItem, ...prev.slice(0, 9)]);
       triggerHaptic();
-      Alert.alert(
-        "Analysis Complete",
-        `Result: ${data.verdict} (Score: ${data.final_score}/100)`
-      );
+      Alert.alert("Analysis Complete", `Result: ${data.verdict} (Score: ${data.final_score}/100)`);
     } catch (error) {
-      Alert.alert(
-        "Analysis Failed",
-        "Could not analyze email. Please try again."
-      );
+      Alert.alert("Analysis Failed", "Could not analyze email. Please try again.");
     } finally {
       setIsAnalyzing(false);
       setProgress(0);
+
     }
   };
 
@@ -454,8 +444,8 @@ export function FraudAnalyzer() {
                       result.score < 50
                         ? "destructive"
                         : result.score < 80
-                        ? "secondary"
-                        : "default"
+                          ? "secondary"
+                          : "default"
                     }
                     style={[styles.levelBadge, { marginRight: 8 }]}
                   >
@@ -540,8 +530,8 @@ export function FraudAnalyzer() {
                           scan.virustotal_score >= 7
                             ? "destructive"
                             : scan.virustotal_score >= 4
-                            ? "secondary"
-                            : "outline"
+                              ? "secondary"
+                              : "outline"
                         }
                         style={styles.flagBadge}
                       >
@@ -767,7 +757,7 @@ export function FraudAnalyzer() {
                     Detected Issues:
                   </Text>
                   {selectedHistory.result.reason &&
-                  selectedHistory.result.reason.length > 0 ? (
+                    selectedHistory.result.reason.length > 0 ? (
                     selectedHistory.result.reason.map((msg, idx) => (
                       <Text
                         key={idx}
@@ -966,8 +956,8 @@ export function FraudAnalyzer() {
                           progress < 50
                             ? "default"
                             : progress < 80
-                            ? "warning"
-                            : "success"
+                              ? "warning"
+                              : "success"
                         }
                         style={styles.progress}
                       />
@@ -1035,8 +1025,8 @@ export function FraudAnalyzer() {
                           progress < 50
                             ? "default"
                             : progress < 80
-                            ? "warning"
-                            : "success"
+                              ? "warning"
+                              : "success"
                         }
                         style={styles.progress}
                       />
