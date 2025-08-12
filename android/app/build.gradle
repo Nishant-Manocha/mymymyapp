@@ -87,7 +87,7 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.pankaj465.FinGuard"
+    namespace 'com.pankaj465.FinGuard'
     defaultConfig {
         applicationId 'com.pankaj465.FinGuard'
         minSdkVersion rootProject.ext.minSdkVersion

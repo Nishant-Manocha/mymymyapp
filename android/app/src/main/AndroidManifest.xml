@@ -1,6 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-  <!-- Permissions -->
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -8,13 +6,16 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+  <uses-permission android:name="android.permission.READ_SMS"/>
+  <uses-permission android:name="android.permission.RECEIVE_SMS"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-
-  <!-- Allow querying browsers for HTTPS -->
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
@@ -22,63 +23,26 @@
       <data android:scheme="https"/>
     </intent>
   </queries>
-
-  <!-- App -->
-  <application
-      android:name=".MainApplication"
-      android:label="@string/app_name"
-      android:icon="@mipmap/ic_launcher"
-      android:roundIcon="@mipmap/ic_launcher_round"
-      android:allowBackup="false"
-      android:theme="@style/AppTheme"
-      android:supportsRtl="true"
-      android:fullBackupContent="false"
-      android:dataExtractionRules="@xml/secure_store_data_extraction_rules"
-      android:usesCleartextTraffic="false"
-      android:fullBackupOnly="false"
-      tools:replace="allowBackup,fullBackupContent,fullBackupOnly">
-
-      <!-- Expo OTA Updates -->
-      <meta-data android:name="expo.modules.updates.ENABLED" android:value="true"/>
-      <meta-data android:name="expo.modules.updates.EXPO_RUNTIME_VERSION" android:value="@string/expo_runtime_version"/>
-      <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
-      <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
-      <meta-data android:name="expo.modules.updates.EXPO_UPDATE_URL" android:value="https://u.expo.dev/3ad0067d-07f5-4288-a8f4-5ff668dac412"/>
-
-      <!-- Google Maps API Key -->
-      <meta-data
-          android:name="com.google.android.geo.API_KEY"
-          android:value="AIzaSyCz2UfoG16tPt_AQqCoACxLPXXT9UoCvoY"/>
-
-      <!-- Main Activity -->
-      <activity
-          android:name=".MainActivity"
-          android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode"
-          android:launchMode="singleTask"
-          android:windowSoftInputMode="adjustResize"
-          android:theme="@style/Theme.App.SplashScreen"
-          android:exported="true"
-          android:screenOrientation="portrait">
-        <intent-filter>
-          <action android:name="android.intent.action.MAIN"/>
-          <category android:name="android.intent.category.LAUNCHER"/>
-        </intent-filter>
-        <intent-filter>
-          <action android:name="android.intent.action.VIEW"/>
-          <category android:name="android.intent.category.DEFAULT"/>
-          <category android:name="android.intent.category.BROWSABLE"/>
-          <data android:scheme="FinEduguard"/>
-          <data android:scheme="com.pankaj465.FinGuard"/>
-          <data android:scheme="exp+finguard"/>
-        </intent-filter>
-      </activity>
-
-      <!-- Security monitor background service -->
-      <service
-          android:name=".SecurityMonitor"
-          android:enabled="true"
-          android:exported="false" />
-
+  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:theme="@style/AppTheme" android:supportsRtl="true" android:fullBackupContent="false" android:dataExtractionRules="@xml/secure_store_data_extraction_rules" android:usesCleartextTraffic="false" android:fullBackupOnly="false" tools:replace="allowBackup,fullBackupContent,fullBackupOnly">
+    <meta-data android:name="expo.modules.updates.ENABLED" android:value="true"/>
+    <meta-data android:name="expo.modules.updates.EXPO_RUNTIME_VERSION" android:value="@string/expo_runtime_version"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATE_URL" android:value="https://u.expo.dev/3ad0067d-07f5-4288-a8f4-5ff668dac412"/>
+    <service android:name=".SecurityMonitor" android:enabled="true" android:exported="false"/>
+    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="FinEduguard"/>
+        <data android:scheme="com.pankaj465.FinGuard"/>
+        <data android:scheme="exp+finguard"/>
+      </intent-filter>
+    </activity>
   </application>
-
 </manifest>

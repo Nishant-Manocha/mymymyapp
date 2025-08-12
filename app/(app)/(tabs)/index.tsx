@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState  } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,14 @@ import {
   Animated,
   Image,
   StatusBar,
+  PermissionsAndroid,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import PermissionManager from "../../../utils/PermissionManager";
+
 import {
   Brain,
   Flag,
@@ -54,6 +58,7 @@ const { width, height } = Dimensions.get("window");
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedView = Animated.createAnimatedComponent(View);
 
+
 const HomeScreen = () => {
   const { theme } = useTheme();
   const [isPopupVisible, setPopupVisible] = useState(false);
@@ -61,6 +66,7 @@ const HomeScreen = () => {
   const fadeInAnim = useRef(new Animated.Value(0)).current;
   const slideUpAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
 
   useEffect(() => {
     // Initial animations
@@ -271,6 +277,8 @@ const HomeScreen = () => {
     bgColor: "#FFF3E0",
     route: "/pages/QuizzesScreen",
   };
+
+  // Permissi
 
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);

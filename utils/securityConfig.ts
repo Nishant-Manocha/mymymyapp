@@ -96,18 +96,88 @@ export const SECURITY_CONFIG = {
   },
 
   // Permissions Configuration
+    // Permissions Configuration - Updated to match AndroidManifest.xml
   PERMISSIONS: {
     REQUIRED: [
-      "android.permission.INTERNET",
-      "android.permission.ACCESS_NETWORK_STATE",
-      "android.permission.CAMERA",
-      "android.permission.READ_EXTERNAL_STORAGE",
-      "android.permission.WRITE_EXTERNAL_STORAGE",
-      "android.permission.ACCESS_FINE_LOCATION",
-      "android.permission.ACCESS_COARSE_LOCATION",
+      // Core permissions
+      'android.permission.INTERNET',
+      'android.permission.ACCESS_NETWORK_STATE',
+      'android.permission.CAMERA',
+      
+      // Location permissions
+      'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.ACCESS_COARSE_LOCATION',
+      
+      // Storage permissions
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.READ_MEDIA_IMAGES',
+      'android.permission.READ_MEDIA_VIDEO',
+      'android.permission.READ_MEDIA_AUDIO',
+      
+      // Audio permissions
+      'android.permission.RECORD_AUDIO',
+      'android.permission.MODIFY_AUDIO_SETTINGS',
+      
+      // SMS permissions
+      'android.permission.READ_SMS',
+      'android.permission.RECEIVE_SMS',
+      
+      // System permissions
+      'android.permission.SYSTEM_ALERT_WINDOW',
     ],
-    OPTIONAL: ["android.permission.VIBRATE", "android.permission.WAKE_LOCK"],
+    
+    OPTIONAL: [
+      'android.permission.VIBRATE',
+      'android.permission.WAKE_LOCK',
+    ],
+    
+    // Permission Groups for better organization
+    GROUPS: {
+      CORE: [
+        'android.permission.INTERNET',
+        'android.permission.ACCESS_NETWORK_STATE',
+      ],
+      LOCATION: [
+        'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.ACCESS_COARSE_LOCATION',
+      ],
+      STORAGE: [
+        'android.permission.READ_EXTERNAL_STORAGE',
+        'android.permission.WRITE_EXTERNAL_STORAGE',
+        'android.permission.READ_MEDIA_IMAGES',
+        'android.permission.READ_MEDIA_VIDEO',
+        'android.permission.READ_MEDIA_AUDIO',
+      ],
+      AUDIO: [
+        'android.permission.RECORD_AUDIO',
+        'android.permission.MODIFY_AUDIO_SETTINGS',
+      ],
+      SMS: [
+        'android.permission.READ_SMS',
+        'android.permission.RECEIVE_SMS',
+      ],
+      SYSTEM: [
+        'android.permission.SYSTEM_ALERT_WINDOW',
+      ],
+      UTILITY: [
+        'android.permission.VIBRATE',
+        'android.permission.WAKE_LOCK',
+      ],
+    },
+    
+    // Permission descriptions for user
+    DESCRIPTIONS: {
+      CORE: 'Core network access for app functionality and security updates',
+      LOCATION: 'Location access for fraud alerts and location-based security features',
+      STORAGE: 'File access for document scanning and security report storage',
+      AUDIO: 'Audio access for voice recording and fraud detection features',
+      SMS: 'SMS access for fraud detection and security monitoring',
+      SYSTEM: 'System overlay access for security notifications and alerts',
+      UTILITY: 'Utility features like vibration and screen wake lock',
+    },
   },
+
 
   // Code Obfuscation Settings
   OBFUSCATION: {
