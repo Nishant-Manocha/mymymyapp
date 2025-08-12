@@ -11,6 +11,7 @@ import {
   StatusBar,
   PermissionsAndroid,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -277,6 +278,42 @@ const HomeScreen = () => {
     bgColor: "#FFF3E0",
     route: "/pages/QuizzesScreen",
   };
+
+  // Permissions state and handlers
+  const [permissionStatus, setPermissionStatus] = useState<{ granted: string[]; denied: string[]; blocked: string[] }>({ granted: [], denied: [], blocked: [] });
+  const [isPermissionLoading, setIsPermissionLoading] = useState<boolean>(false);
+  const [showPermissionBanner, setShowPermissionBanner] = useState<boolean>(true);
+
+  const loadPermissions = async () => {
+    setIsPermissionLoading(true);
+    try {
+      const status = await PermissionManager.getPermissionStatus();
+      setPermissionStatus(status);
+      const missing = [...status.denied, ...status.blocked];
+      setShowPermissionBanner(missing.length > 0);
+    } catch (e) {
+      // no-op
+    } finally {
+      setIsPermissionLoading(false);
+    }
+  };
+
+  const handleRequestPermissions = async () => {
+    setIsPermissionLoading(true);
+    try {
+      await PermissionManager.requestPermissionsWithExplanation();
+    } finally {
+      await loadPermissions();
+    }
+  };
+
+  const handleOpenSettings = () => {
+    PermissionManager.openAppSettings();
+  };
+
+  useEffect(() => {
+    loadPermissions();
+  }, []);
 
   // Permissi
 
@@ -1152,6 +1189,47 @@ const HomeScreen = () => {
             </View>
             <ThemeToggle />
           </AnimatedView>
+
+          {/* Permissions Banner */}
+          {showPermissionBanner && (
+            <View style={styles.permissionBanner}>
+              <Text style={styles.permissionTitle}>App Permissions Needed</Text>
+              {isPermissionLoading ? (
+                <View style={styles.permissionLoadingRow}>
+                  <ActivityIndicator size="small" color={PSBColors.primary.green} />
+                  <Text style={styles.permissionText}>Checking permissions…</Text>
+                </View>
+              ) : (
+                <>
+                  {([...permissionStatus.denied, ...permissionStatus.blocked].length > 0) ? (
+                    <>
+                      <Text style={styles.permissionText}>
+                        {permissionStatus.denied.length + permissionStatus.blocked.length} permission(s) required for best experience.
+                      </Text>
+                      {permissionStatus.blocked.length > 0 && (
+                        <Text style={styles.permissionBlockedText}>
+                          Some permissions are blocked. Please enable them in Settings.
+                        </Text>
+                      )}
+                      <View style={styles.permissionActions}>
+                        <TouchableOpacity style={styles.permissionPrimaryButton} onPress={handleRequestPermissions}>
+                          <Text style={styles.permissionPrimaryButtonText}>Grant Now</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.permissionSecondaryButton} onPress={handleOpenSettings}>
+                          <Text style={styles.permissionSecondaryButtonText}>Open Settings</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.permissionAllSetRow}>
+                      <ShieldCheck color={PSBColors.primary.green} size={20} />
+                      <Text style={styles.permissionAllSetText}>All required permissions granted.</Text>
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+          )}
 
           {/* Stats */}
           <AnimatedView
@@ -2240,6 +2318,75 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: PSBColors.text.secondary,
     lineHeight: 20,
+  },
+  permissionBanner: {
+    marginHorizontal: PSBSpacing.lg,
+    marginTop: 12,
+    marginBottom: 8,
+    backgroundColor: PSBColors.background.card,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+  },
+  permissionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: PSBColors.primary.green,
+    marginBottom: 6,
+  },
+  permissionText: {
+    fontSize: 13,
+    color: PSBColors.text.secondary,
+    marginTop: 6,
+  },
+  permissionBlockedText: {
+    fontSize: 12,
+    color: "#D32F2F",
+    marginTop: 4,
+  },
+  permissionActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+  },
+  permissionPrimaryButton: {
+    backgroundColor: PSBColors.primary.green,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  permissionPrimaryButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  permissionSecondaryButton: {
+    backgroundColor: PSBColors.primary.gold + "22",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: PSBColors.primary.gold + "55",
+  },
+  permissionSecondaryButtonText: {
+    color: PSBColors.primary.green,
+    fontWeight: "700",
+  },
+  permissionAllSetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+  },
+  permissionAllSetText: {
+    fontSize: 13,
+    color: PSBColors.text.secondary,
+  },
+  permissionLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
   },
 });
 
