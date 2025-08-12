@@ -4,7 +4,7 @@ import { SECURITY_CONFIG } from './securityConfig';
 
 export class PermissionManager {
   private static instance: PermissionManager;
-  
+
   static getInstance(): PermissionManager {
     if (!PermissionManager.instance) {
       PermissionManager.instance = new PermissionManager();
@@ -12,10 +12,35 @@ export class PermissionManager {
     return PermissionManager.instance;
   }
 
+  private resolvePermissionConstant(permission: string): Permission {
+    // If caller already passed a constant string recognized by the library, return as-is
+    if (permission.startsWith('android.permission.') || permission.startsWith('ios.permission.')) {
+      const last = permission.split('.').pop() || '';
+      if (Platform.OS === 'android' && (PERMISSIONS as any).ANDROID?.[last]) {
+        return (PERMISSIONS as any).ANDROID[last] as Permission;
+      }
+      if (Platform.OS === 'ios' && (PERMISSIONS as any).IOS?.[last]) {
+        return (PERMISSIONS as any).IOS[last] as Permission;
+      }
+      return permission as unknown as Permission;
+    }
+
+    // If provided as short key like CAMERA, map via PERMISSIONS
+    if (Platform.OS === 'android' && (PERMISSIONS as any).ANDROID?.[permission]) {
+      return (PERMISSIONS as any).ANDROID[permission] as Permission;
+    }
+    if (Platform.OS === 'ios' && (PERMISSIONS as any).IOS?.[permission]) {
+      return (PERMISSIONS as any).IOS[permission] as Permission;
+    }
+
+    return permission as unknown as Permission;
+  }
+
   // Check if permission is granted
-  async checkPermission(permission: Permission): Promise<boolean> {
+  async checkPermission(permission: Permission | string): Promise<boolean> {
     try {
-      const result = await check(permission);
+      const normalized = this.resolvePermissionConstant(permission as string);
+      const result = await check(normalized);
       return result === RESULTS.GRANTED;
     } catch (error) {
       console.error('Error checking permission:', error);
@@ -24,9 +49,10 @@ export class PermissionManager {
   }
 
   // Request single permission
-  async requestPermission(permission: Permission): Promise<boolean> {
+  async requestPermission(permission: Permission | string): Promise<boolean> {
     try {
-      const result = await request(permission);
+      const normalized = this.resolvePermissionConstant(permission as string);
+      const result = await request(normalized);
       return result === RESULTS.GRANTED;
     } catch (error) {
       console.error('Error requesting permission:', error);
@@ -49,11 +75,11 @@ export class PermissionManager {
   // Check all required permissions
   async checkAllRequiredPermissions(): Promise<{ [key: string]: boolean }> {
     const results: { [key: string]: boolean } = {};
-    
+
     for (const permission of SECURITY_CONFIG.PERMISSIONS.REQUIRED) {
       results[permission] = await this.checkPermission(permission as Permission);
     }
-    
+
     return results;
   }
 
@@ -87,7 +113,8 @@ export class PermissionManager {
 
     for (const permission of SECURITY_CONFIG.PERMISSIONS.REQUIRED) {
       try {
-        const result = await check(permission as Permission);
+        const normalized = this.resolvePermissionConstant(permission as string);
+        const result = await check(normalized);
         switch (result) {
           case RESULTS.GRANTED:
             status.granted.push(permission);
@@ -118,9 +145,9 @@ export class PermissionManager {
       'android.permission.ACCESS_FINE_LOCATION': 'Precise location helps provide location-based security alerts',
       'android.permission.ACCESS_COARSE_LOCATION': 'Approximate location is used for regional security features',
     };
-    
+
     const description = descriptions[permission] || 'This permission is required for app security features';
-    
+
     Alert.alert(
       'Permission Required',
       description,
@@ -147,7 +174,7 @@ export class PermissionManager {
     for (const permission of SECURITY_CONFIG.PERMISSIONS.REQUIRED) {
       const granted = await this.requestPermission(permission as Permission);
       results.push(granted);
-      
+
       if (!granted) {
         this.showPermissionExplanation(permission);
       }
