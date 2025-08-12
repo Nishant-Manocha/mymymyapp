@@ -56,8 +56,8 @@ export const ScenarioSimulator: React.FC<ScenarioSimulatorProps> = ({
 
         // Assuming your API returns data in response.data
         const data = response.data;
-        console.log("Fetched scenario data:", data);
-        setCurrentScenario(data);
+        console.log("Fetched scenario data:", data.scenario);
+        setCurrentScenario(data.scenario);
         setTimeLeft(data.timeLimit || null);
         setStartTime(new Date());
       } catch (error) {

@@ -1,9 +1,36 @@
 const { getDefaultConfig } = require("expo/metro-config");
-// const { withNativeWind } = require('nativewind/metro');
+const obfuscatorPlugin = require("obfuscator-io-metro-plugin");
 
 const config = getDefaultConfig(__dirname);
 
-// Enable code minification and obfuscation for production
+// Only apply obfuscation in production
+if (process.env.NODE_ENV === "production") {
+  const obfuscatorOptions = {
+    compact: true,
+    controlFlowFlattening: false,
+    deadCodeInjection: false,
+    debugProtection: false,
+    disableConsoleOutput: true,
+    identifierNamesGenerator: "hexadecimal",
+    numbersToExpressions: true,
+    renameGlobals: false,
+    selfDefending: true,
+    simplify: true,
+    splitStrings: true,
+    stringArray: true,
+    stringArrayEncoding: ["base64"],
+    stringArrayThreshold: 0.75,
+    transformObjectKeys: true,
+    unicodeEscapeSequence: false,
+  };
+
+  // Wrap the default transformer with the obfuscator plugin
+  config.transformer.babelTransformerPath = obfuscatorPlugin(obfuscatorOptions)(
+    config.transformer.babelTransformerPath
+  );
+}
+
+// Minifier settings (already in your code)
 if (process.env.NODE_ENV === "production") {
   config.transformer.minifierConfig = {
     mangle: {
@@ -19,14 +46,11 @@ if (process.env.NODE_ENV === "production") {
       comments: false,
     },
   };
-}
 
-// Disable source maps in production for security
-if (process.env.NODE_ENV === "production") {
   config.transformer.generateSourceMaps = false;
 }
 
-// Configure asset handling
+// Asset handling
 config.resolver.assetExts.push(
   "db",
   "mp3",
@@ -39,13 +63,8 @@ config.resolver.assetExts.push(
   "svg"
 );
 
-// Configure module resolution
 config.resolver.platforms = ["ios", "android", "native", "web"];
-
-// Enable tree shaking
 config.transformer.enableBabelRCLookup = false;
-
-// Configure caching
 config.cacheStores = [];
 
 module.exports = config;

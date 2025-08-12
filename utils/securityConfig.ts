@@ -11,6 +11,35 @@ export const SECURITY_CONFIG = {
     TAG_SIZE: 16,
     ITERATIONS: 100000,
   },
+  DEVICE_SECURITY: {
+    ROOT_DETECTION: {
+      ENABLED: true,
+      METHODS: [
+        "SU_BINARY",
+        "ROOT_APPS",
+        "ROOT_PACKAGES",
+        "DANGEROUS_PROPS",
+        "RW_PATHS",
+        "MAGISK_HIDE",
+        "XPOSED",
+        "SUBSTRATE",
+        "FRIDA",
+        "CYDIA",
+      ],
+      BLOCK_EMULATOR: true,
+      BLOCK_DEVELOPER_MODE: true,
+      CONTINUOUS_MONITORING: true,
+      MONITOR_INTERVAL: 30000, // 30 seconds
+    },
+
+    RESPONSE: {
+      BLOCK_APP: true,
+      SHOW_MESSAGE: true,
+      MESSAGE: "This device is not supported for security reasons.",
+      EXIT_APP: true,
+      LOG_VIOLATION: true,
+    },
+  },
 
   // SSL Pinning Configuration
   SSL_PINNING: {
@@ -55,15 +84,6 @@ export const SECURITY_CONFIG = {
       ENABLED: true,
       SHARED_SECRET: "ChangeThisToAStrongSecret", // Set via env at runtime for request/response encryption
     },
-  },
-
-  // Root/Jailbreak Detection
-  DEVICE_SECURITY: {
-    ROOT_DETECTION_ENABLED: true,
-    JAILBREAK_DETECTION_ENABLED: true,
-    EMULATOR_DETECTION_ENABLED: true,
-    DEBUG_MODE_DETECTION_ENABLED: !__DEV__,
-    DEVELOPMENT_MODE_DETECTION_ENABLED: !__DEV__,
   },
 
   // App Security Settings
