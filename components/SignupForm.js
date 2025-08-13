@@ -20,17 +20,61 @@ const SignupForm = ({ onSignupSuccess }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
 
   const handleSendOtp = async () => {
+    setPasswordError("");
+    setConfirmPasswordError("");
+
     if (!firstName) return Toast.show({ type: "error", text1: "Enter your first name!" });
     if (!lastName) return Toast.show({ type: "error", text1: "Enter your last name!" });
     if (!email) return Toast.show({ type: "error", text1: "Enter your email!" });
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return Toast.show({ type: "error", text1: "Enter a valid email address!" });
-    if (!password) return Toast.show({ type: "error", text1: "Enter your password!" });
-    if (password.length < 6) return Toast.show({ type: "error", text1: "Password must be at least 6 characters!" });
-    if (!confirmPassword) return Toast.show({ type: "error", text1: "Confirm your password!" });
-    if (password !== confirmPassword) return Toast.show({ type: "error", text1: "Passwords do not match!" });
+    if (!password) {
+      setPasswordError("Enter your password!");
+      return;
+    }
+
+    // Strong password: at least 8 chars, uppercase, lowercase, number, special
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[~`!@#$%^&*()_+\-={}\[\]|;:'",.<>/?]).{8,}$/;
+
+    // Common password blacklist (trimmed set)
+    const commonPasswords = new Set([
+      "password", "123456", "123456789", "12345678", "qwerty", "abc123",
+      "111111", "123123", "password1", "iloveyou", "admin", "welcome",
+    ]);
+
+    const emailUser = email.split("@")[0]?.toLowerCase();
+    const emailDomain = email.split("@")[1]?.split(".")[0]?.toLowerCase();
+
+    if (!strongPasswordRegex.test(password)) {
+      setPasswordError("Use 8+ chars with upper, lower, number, and symbol.");
+      return;
+    }
+    if (commonPasswords.has(password.toLowerCase())) {
+      setPasswordError("Password is too common. Choose a stronger one.");
+      return;
+    }
+    if (emailUser && password.toLowerCase().includes(emailUser)) {
+      setPasswordError("Password must not contain your email username.");
+      return;
+    }
+    if (emailDomain && password.toLowerCase().includes(emailDomain)) {
+      setPasswordError("Password must not contain your email domain.");
+      return;
+    }
+
+    if (!confirmPassword) {
+      setConfirmPasswordError("Confirm your password!");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setConfirmPasswordError("Passwords do not match!");
+      return;
+    }
+
     if (!agreeToTerms) return Toast.show({ type: "error", text1: "You must agree to the terms!" });
 
     try {
@@ -104,7 +148,10 @@ const SignupForm = ({ onSignupSuccess }) => {
             placeholder="Enter your Password"
             secureTextEntry={!showPassword}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (passwordError) setPasswordError("");
+            }}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
             <Ionicons
@@ -114,6 +161,7 @@ const SignupForm = ({ onSignupSuccess }) => {
             />
           </TouchableOpacity>
         </View>
+        {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
         <Text style={styles.label}>Confirm Password</Text>
         <View style={styles.inputWrapper}>
@@ -123,7 +171,10 @@ const SignupForm = ({ onSignupSuccess }) => {
             placeholder="Confirm your Password"
             secureTextEntry={!showConfirmPassword}
             value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            onChangeText={(text) => {
+              setConfirmPassword(text);
+              if (confirmPasswordError) setConfirmPasswordError("");
+            }}
           />
           <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
             <Ionicons
@@ -133,6 +184,7 @@ const SignupForm = ({ onSignupSuccess }) => {
             />
           </TouchableOpacity>
         </View>
+        {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
 
         <View style={styles.checkboxRow}>
           <TouchableOpacity
@@ -238,6 +290,12 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  errorText: {
+    color: "#c0392b",
+    fontSize: 12,
+    marginTop: -6,
+    marginBottom: 8,
   },
 });
 

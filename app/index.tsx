@@ -1,11 +1,42 @@
 import { Redirect } from "expo-router";
 import { useAuth } from "../contexts/AuthContext";
 import { View, ActivityIndicator } from "react-native";
+import { useEffect, useState } from "react";
+import PermissionManager from "../utils/PermissionManager";
+import RNBootSplash from "react-native-bootsplash";
 
 export default function Index() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [permissionsReady, setPermissionsReady] = useState(false);
 
-  if (isLoading) {
+  useEffect(() => {
+    let isMounted = true;
+
+    const requestPermissions = async () => {
+      try {
+        await PermissionManager.requestPermissionsWithExplanation();
+      } catch (error) {
+        console.warn("Permission request failed:", error);
+      } finally {
+        if (isMounted) setPermissionsReady(true);
+      }
+    };
+
+    requestPermissions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Hide native splash when app is ready
+  useEffect(() => {
+    if (!isLoading && permissionsReady) {
+      RNBootSplash.hide({ fade: true });
+    }
+  }, [isLoading, permissionsReady]);
+
+  if (isLoading || !permissionsReady) {
     return (
       <>
         <View
@@ -25,7 +56,7 @@ export default function Index() {
   // Redirect based on authentication status
   if (isAuthenticated) {
     return <Redirect href="/(app)/(tabs)" />;
-  } else {
-    return <Redirect href="/(auth)/login" />;
   }
+
+  return <Redirect href="/(auth)/login" />;
 }
