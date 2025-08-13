@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { View, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
 import PermissionManager from "../utils/PermissionManager";
+import RNBootSplash from "react-native-bootsplash";
 
 export default function Index() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -27,6 +28,13 @@ export default function Index() {
       isMounted = false;
     };
   }, []);
+
+  // Hide native splash when app is ready
+  useEffect(() => {
+    if (!isLoading && permissionsReady) {
+      RNBootSplash.hide({ fade: true });
+    }
+  }, [isLoading, permissionsReady]);
 
   if (isLoading || !permissionsReady) {
     return (
